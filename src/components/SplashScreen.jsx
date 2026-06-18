@@ -1,48 +1,48 @@
 import { useEffect, useState } from 'react'
 
-// 최소 600ms 브랜딩 노출, 데이터 준비되면 즉시 해제
-export default function SplashScreen({ onDone, dataReady }) {
-  const [minTimePassed, setMinTimePassed] = useState(false)
+const IMAGES = ['/splash.jpg', '/splash2.png', '/splash3.png']
+const DURATION = 600 // 장당 0.6초
+
+export default function SplashScreen({ onDone }) {
+  const [index, setIndex] = useState(0)
   const [fade, setFade] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setMinTimePassed(true), 600)
-    return () => clearTimeout(t)
-  }, [])
-
-  useEffect(() => {
-    // reduced motion: 즉시 완료
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (prefersReduced) { onDone(); return }
 
-    // Firebase 응답 없을 때를 대비한 최대 대기 2초
-    const maxTimer = setTimeout(() => {
-      setFade(true)
-      setTimeout(onDone, 400)
-    }, 2000)
-
-    if (minTimePassed && dataReady) {
-      clearTimeout(maxTimer)
-      setFade(true)
-      const t = setTimeout(onDone, 400)
-      return () => { clearTimeout(t); clearTimeout(maxTimer) }
+    if (index < IMAGES.length - 1) {
+      // 다음 이미지로
+      const t = setTimeout(() => setIndex((i) => i + 1), DURATION)
+      return () => clearTimeout(t)
+    } else {
+      // 마지막 이미지 → 페이드아웃 후 완료
+      const t1 = setTimeout(() => setFade(true), DURATION)
+      const t2 = setTimeout(onDone, DURATION + 400)
+      return () => { clearTimeout(t1); clearTimeout(t2) }
     }
-    return () => clearTimeout(maxTimer)
-  }, [minTimePassed, dataReady, onDone])
+  }, [index, onDone])
 
   return (
     <div style={{
       position: 'fixed', inset: 0, background: '#000',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: fade ? 0 : 1,
       transition: 'opacity 0.4s ease',
       zIndex: 9999,
     }}>
-      <img
-        src="/splash.jpg"
-        alt="splash"
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-      />
+      {IMAGES.map((src, i) => (
+        <img
+          key={src}
+          src={src}
+          alt="splash"
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%', objectFit: 'cover',
+            opacity: index === i ? 1 : 0,
+            transition: 'opacity 0.15s ease',
+          }}
+        />
+      ))}
     </div>
   )
 }
