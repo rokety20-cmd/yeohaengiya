@@ -11,7 +11,11 @@ export function useTrips() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Firebase 응답 없을 때 3초 후 강제 해제
+    const timeout = setTimeout(() => setLoading(false), 3000)
+
     const unsub = onValue(tripsRef(), (snap) => {
+      clearTimeout(timeout)
       const val = snap.val()
       const list = val
         ? Object.entries(val)
@@ -22,7 +26,7 @@ export function useTrips() {
       setTrips(list)
       setLoading(false)
     })
-    return () => unsub()
+    return () => { unsub(); clearTimeout(timeout) }
   }, [])
 
   const createTrip = useCallback(async (title, destination = '') => {
