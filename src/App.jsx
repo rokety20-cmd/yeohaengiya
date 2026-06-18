@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import SplashScreen from './components/SplashScreen'
+import AuthGate from './components/AuthGate'
 import ConfirmedBanner from './components/ConfirmedBanner'
 import StepBar from './components/StepBar'
 import TripSelectPage from './pages/TripSelectPage'
@@ -11,6 +12,7 @@ import CostPage from './pages/CostPage'
 import { useConfirmedDate } from './hooks/useFirebase'
 import { useTripMeta, useTripMembers, useTripDateOptions } from './hooks/useTrips'
 import { useFriends } from './hooks/useFriends'
+import { useAuth } from './hooks/useAuth'
 import { ref, set } from 'firebase/database'
 import { db } from './firebase'
 
@@ -30,30 +32,20 @@ function TripApp({ tripId, me, onExit }) {
   const { meta } = useTripMeta(tripId)
   const { memberIds } = useTripMembers(tripId)
   const { options: dateOptions } = useTripDateOptions(tripId)
+  const { signOutUser } = useAuth()
 
   return (
-    <div style={{ maxWidth: 430, margin: '0 auto', background: '#fff', minHeight: '100vh' }}>
+    <div style={styles.tripApp}>
       {/* 헤더 */}
-      <div style={{ padding: '14px 18px 10px', borderBottom: '0.5px solid #f0f0f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 500 }}>{meta?.title ?? '여행'}</div>
-            <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>
-              👥 {memberIds.length}명 참가
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => setStep('vote')} style={{
-              fontSize: 12, padding: '4px 10px', borderRadius: 20,
-              border: '0.5px solid #e0e0e0', background: '#f5f5f5', color: '#888', cursor: 'pointer',
-            }}>
-              {me.name} ▾
-            </button>
-            <button onClick={onExit} style={{
-              fontSize: 12, padding: '4px 10px', borderRadius: 20,
-              border: '0.5px solid #e0e0e0', background: '#f5f5f5', color: '#888', cursor: 'pointer',
-            }}>← 나가기</button>
-          </div>
+      <div style={styles.header}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 500 }}>{meta?.title ?? '여행'}</div>
+          <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>👥 {memberIds.length}명 참가</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setStep('vote')} style={styles.chipBtn}>{me.name} ▾</button>
+          <button onClick={onExit} style={styles.chipBtn}>← 나가기</button>
+          <button onClick={signOutUser} style={{ ...styles.chipBtn, color: '#A32D2D' }}>로그아웃</button>
         </div>
       </div>
 
@@ -64,15 +56,11 @@ function TripApp({ tripId, me, onExit }) {
       <StepBar current={step} confirmed={!!confirmedDate} onChange={setStep} />
 
       {/* 페이지 콘텐츠 */}
-      {step === 'vote' && (
-        <VotePage me={me} tripId={tripId} tripMembers={memberIds} />
-      )}
-      {step === 'prep' && (
-        <PrepPage me={me} tripId={tripId} onNext={() => setStep('cost')} />
-      )}
-      {step === 'cost' && (
-        <CostPage tripId={tripId} tripMembers={memberIds} />
-      )}
+      <div style={styles.pageContent}>
+        {step === 'vote' && <VotePage me={me} tripId={tripId} tripMembers={memberIds} />}
+        {step === 'prep' && <PrepPage me={me} tripId={tripId} onNext={() => setStep('cost')} />}
+        {step === 'cost' && <CostPage tripId={tripId} tripMembers={memberIds} />}
+      </div>
     </div>
   )
 }
@@ -80,7 +68,11 @@ function TripApp({ tripId, me, onExit }) {
 // 앱 전체 진입점
 export default function App() {
   const { friends, loading: friendsLoading } = useFriends()
+  const { linkedFriendId } = useAuth()
   const [splashDone, setSplashDone] = useState(false)
+  const [screen, setScreen] = useState('tripSelect')
+  const [selectedTripId, setSelectedTripId] = useState(null)
+  const [me, setMe] = useState(null)
 
   // 친구가 한 명도 없으면 기본 멤버 자동 등록
   useEffect(() => {
@@ -91,9 +83,14 @@ export default function App() {
       })
     }
   }, [friendsLoading, friends.length])
-  const [screen, setScreen] = useState('tripSelect') // 'tripSelect' | 'friends' | 'tripSetup' | 'trip'
-  const [selectedTripId, setSelectedTripId] = useState(null)
-  const [me, setMe] = useState(null)
+
+  // 인증된 사용자의 linkedFriendId로 me 자동 설정
+  useEffect(() => {
+    if (linkedFriendId && friends.length > 0 && !me) {
+      const linked = friends.find((f) => f.id === linkedFriendId)
+      if (linked) setMe(linked)
+    }
+  }, [linkedFriendId, friends, me])
 
   const handleSplashDone = useCallback(() => setSplashDone(true), [])
 
@@ -117,34 +114,81 @@ export default function App() {
     return <SplashScreen onDone={handleSplashDone} />
   }
 
-  if (screen === 'friends') {
-    return <FriendsPage onBack={() => setScreen('tripSelect')} />
-  }
-
-  if (screen === 'tripSetup' && selectedTripId) {
-    return (
-      <TripSetupPage
-        tripId={selectedTripId}
-        onReady={handleTripReady}
-        onBack={() => setScreen('tripSelect')}
-      />
-    )
-  }
-
-  if (screen === 'trip' && selectedTripId && me) {
-    return (
-      <TripApp
-        tripId={selectedTripId}
-        me={me}
-        onExit={handleExit}
-      />
-    )
-  }
-
   return (
-    <TripSelectPage
-      onSelect={handleTripSelect}
-      onManageFriends={() => setScreen('friends')}
-    />
+    <AuthGate>
+      <div style={styles.appShell}>
+        {screen === 'friends' && (
+          <div style={styles.panelPage}>
+            <FriendsPage onBack={() => setScreen('tripSelect')} />
+          </div>
+        )}
+
+        {screen === 'tripSetup' && selectedTripId && (
+          <div style={styles.panelPage}>
+            <TripSetupPage
+              tripId={selectedTripId}
+              onReady={handleTripReady}
+              onBack={() => setScreen('tripSelect')}
+            />
+          </div>
+        )}
+
+        {screen === 'trip' && selectedTripId && me && (
+          <TripApp tripId={selectedTripId} me={me} onExit={handleExit} />
+        )}
+
+        {screen === 'tripSelect' && (
+          <div style={styles.panelPage}>
+            <TripSelectPage
+              onSelect={handleTripSelect}
+              onManageFriends={() => setScreen('friends')}
+            />
+          </div>
+        )}
+      </div>
+    </AuthGate>
   )
+}
+
+const styles = {
+  // 앱 전체 셸 — PC에서 사이드바 여백 역할
+  appShell: {
+    minHeight: '100vh',
+    background: '#f4f4f4',
+    display: 'flex',
+    justifyContent: 'center',
+  },
+  // 단독 페이지 (TripSelect, FriendsPage 등) — 중앙 패널
+  panelPage: {
+    width: '100%',
+    maxWidth: 520,
+    background: '#fff',
+    minHeight: '100vh',
+    boxShadow: '0 0 40px rgba(0,0,0,0.06)',
+  },
+  // 여행 내부 — 더 넓게
+  tripApp: {
+    width: '100%',
+    maxWidth: 680,
+    background: '#fff',
+    minHeight: '100vh',
+    boxShadow: '0 0 40px rgba(0,0,0,0.06)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  pageContent: {
+    flex: 1,
+    overflowY: 'auto',
+  },
+  header: {
+    padding: '14px 18px 10px',
+    borderBottom: '0.5px solid #f0f0f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  chipBtn: {
+    fontSize: 12, padding: '4px 10px', borderRadius: 20,
+    border: '0.5px solid #e0e0e0', background: '#f5f5f5', color: '#888', cursor: 'pointer',
+  },
 }
