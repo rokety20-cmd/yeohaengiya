@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import SplashScreen from './components/SplashScreen'
 import ConfirmedBanner from './components/ConfirmedBanner'
 import StepBar from './components/StepBar'
@@ -11,6 +11,17 @@ import CostPage from './pages/CostPage'
 import { useConfirmedDate } from './hooks/useFirebase'
 import { useTripMeta, useTripMembers, useTripDateOptions } from './hooks/useTrips'
 import { useFriends } from './hooks/useFriends'
+import { ref, set } from 'firebase/database'
+import { db } from './firebase'
+
+const DEFAULT_FRIENDS = [
+  { id: 'seongwoon', name: '성운', role: '드라이버', emoji: '🚗', bg: '#E6F1FB', tc: '#0C447C', order: 0 },
+  { id: 'byeongsu',  name: '병수', role: '총무',    emoji: '💰', bg: '#E1F5EE', tc: '#085041', order: 1 },
+  { id: 'taeheon',  name: '태헌', role: '바베큐',  emoji: '🔥', bg: '#FAEEDA', tc: '#633806', order: 2 },
+  { id: 'yonghun',  name: '용훈', role: '드라이버', emoji: '🚗', bg: '#F3E6FB', tc: '#4C0C7C', order: 3 },
+  { id: 'hyeok',    name: '혁',   role: '장보기',  emoji: '🛒', bg: '#FBE6E6', tc: '#7C0C0C', order: 4 },
+  { id: 'daekeun',  name: '대근', role: '장보기',  emoji: '🛒', bg: '#F1EFE8', tc: '#44440E', order: 5 },
+]
 
 // 여행 내부 화면 (tripId, me 확정 후)
 function TripApp({ tripId, me, onExit }) {
@@ -68,8 +79,18 @@ function TripApp({ tripId, me, onExit }) {
 
 // 앱 전체 진입점
 export default function App() {
-  const { loading: friendsLoading } = useFriends()
+  const { friends, loading: friendsLoading } = useFriends()
   const [splashDone, setSplashDone] = useState(false)
+
+  // 친구가 한 명도 없으면 기본 멤버 자동 등록
+  useEffect(() => {
+    if (friendsLoading) return
+    if (friends.length === 0) {
+      DEFAULT_FRIENDS.forEach((f) => {
+        set(ref(db, `friends/${f.id}`), { ...f, isActive: true, createdAt: Date.now() })
+      })
+    }
+  }, [friendsLoading, friends.length])
   const [screen, setScreen] = useState('tripSelect') // 'tripSelect' | 'friends' | 'tripSetup' | 'trip'
   const [selectedTripId, setSelectedTripId] = useState(null)
   const [me, setMe] = useState(null)
@@ -93,7 +114,7 @@ export default function App() {
   }, [])
 
   if (!splashDone) {
-    return <SplashScreen onDone={handleSplashDone} dataReady={!friendsLoading} />
+    return <SplashScreen onDone={handleSplashDone} />
   }
 
   if (screen === 'friends') {
