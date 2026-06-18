@@ -1,7 +1,32 @@
 import { useState } from 'react'
 import { useVotes, useConfirmedDate, usePensions } from '../hooks/useFirebase'
-import { useTripDateOptions } from '../hooks/useTrips'
+import { useTripDateOptions, useTripMeta } from '../hooks/useTrips'
 import { useFriends } from '../hooks/useFriends'
+
+function PensionSearch({ destination }) {
+  const keyword = encodeURIComponent((destination || '펜션') + ' 펜션')
+  const sites = [
+    { label: '🔍 네이버', url: `https://search.naver.com/search.naver?query=${keyword}` },
+    { label: '🏠 여기어때', url: `https://www.yeogi.com/domestic-stays?keyword=${encodeURIComponent(destination || '펜션')}` },
+    { label: '🌙 야놀자', url: `https://www.yanolja.com/search?keyword=${keyword}` },
+  ]
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>
+        펜션 검색 {destination ? `— ${destination}` : ''}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {sites.map((s) => (
+          <a key={s.label} href={s.url} target="_blank" rel="noreferrer" style={{
+            flex: 1, padding: '9px 0', borderRadius: 10, fontSize: 12, fontWeight: 500,
+            border: '0.5px solid #e0e0e0', background: '#f9f9f9', color: '#444',
+            textAlign: 'center', textDecoration: 'none', display: 'block',
+          }}>{s.label}</a>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 const btn = (color, bg, border) => ({
   width: '100%', padding: '11px 0', borderRadius: 10, fontSize: 14,
@@ -54,6 +79,7 @@ export default function VotePage({ me, tripId, tripMembers }) {
   const { pensions, addPension, removePension } = usePensions(tripId)
   const { options: dateOptions, addOption, removeOption } = useTripDateOptions(tripId)
   const { friends } = useFriends()
+  const { meta } = useTripMeta(tripId)
 
   const [filter, setFilter] = useState(0)
   const [showDateForm, setShowDateForm] = useState(false)
@@ -194,8 +220,11 @@ export default function VotePage({ me, tripId, tripMembers }) {
         </button>
       )}
 
-      {/* 펜션 공유 게시판 */}
-      <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, margin: '16px 0 8px', letterSpacing: 0.4 }}>펜션 공유 게시판</div>
+      {/* 펜션 검색 + 공유 게시판 */}
+      <div style={{ margin: '16px 0 8px' }}>
+        <PensionSearch destination={meta?.destination} />
+      </div>
+      <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>펜션 공유 게시판</div>
 
       {pensions.map((p) => (
         <div key={p.key} style={{ border: '0.5px solid #e0e0e0', borderRadius: 12, padding: '12px 14px', marginBottom: 8, background: '#fff' }}>
