@@ -71,7 +71,7 @@ function TripApp({ tripId, me, onExit }) {
         <PrepPage me={me} tripId={tripId} onNext={() => setStep('cost')} />
       )}
       {step === 'cost' && (
-        <CostPage tripMembers={memberIds} />
+        <CostPage tripId={tripId} tripMembers={memberIds} />
       )}
     </div>
   )
