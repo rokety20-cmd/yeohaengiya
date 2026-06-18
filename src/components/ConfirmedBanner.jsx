@@ -1,8 +1,6 @@
-import { DATE_OPTIONS } from '../constants'
-
-export default function ConfirmedBanner({ confirmedDate }) {
+export default function ConfirmedBanner({ confirmedDate, dateOptions = [] }) {
   if (!confirmedDate) return null
-  const d = DATE_OPTIONS.find((x) => x.id === confirmedDate)
+  const d = dateOptions.find((x) => x.id === confirmedDate)
   if (!d) return null
 
   return (

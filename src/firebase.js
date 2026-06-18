@@ -13,4 +13,3 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const db = getDatabase(app)
-export const TRIP_ID = import.meta.env.VITE_TRIP_ID || 'trip_2026_summer'

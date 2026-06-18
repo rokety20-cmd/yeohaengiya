@@ -1,4 +1,4 @@
-import { SHARED_ITEMS, PERSONAL_ITEMS } from '../constants'
+import { DEFAULT_SHARED_ITEMS, DEFAULT_PERSONAL_ITEMS } from '../constants'
 import { useSharedChecks, usePersonalChecks } from '../hooks/useFirebase'
 
 function CheckItem({ text, done, onToggle }) {
@@ -22,21 +22,21 @@ function CheckItem({ text, done, onToggle }) {
   )
 }
 
-export default function PrepPage({ me, onNext }) {
-  const { sharedDone, toggleShared } = useSharedChecks()
-  const { personalDone, togglePersonal } = usePersonalChecks(me.id)
+export default function PrepPage({ me, tripId, onNext }) {
+  const { sharedDone, toggleShared } = useSharedChecks(tripId)
+  const { personalDone, togglePersonal } = usePersonalChecks(tripId, me.id)
 
-  const sharedCount = SHARED_ITEMS.filter((i) => sharedDone[i.id]).length
-  const personalCount = PERSONAL_ITEMS.filter((i) => personalDone[i.id]).length
+  const sharedCount = DEFAULT_SHARED_ITEMS.filter((i) => sharedDone[i.id]).length
+  const personalCount = DEFAULT_PERSONAL_ITEMS.filter((i) => personalDone[i.id]).length
 
   return (
     <div style={{ padding: '12px 16px 24px' }}>
       {/* 공동 준비물 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 0 10px' }}>
         <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, letterSpacing: 0.4 }}>공동 준비물</div>
-        <div style={{ fontSize: 12, color: '#555' }}>{sharedCount}/{SHARED_ITEMS.length} 완료</div>
+        <div style={{ fontSize: 12, color: '#555' }}>{sharedCount}/{DEFAULT_SHARED_ITEMS.length} 완료</div>
       </div>
-      {SHARED_ITEMS.map((item) => (
+      {DEFAULT_SHARED_ITEMS.map((item) => (
         <CheckItem key={item.id} text={item.text} done={!!sharedDone[item.id]}
           onToggle={() => toggleShared(item.id, sharedDone[item.id])} />
       ))}
@@ -44,16 +44,16 @@ export default function PrepPage({ me, onNext }) {
       {/* 개인 준비물 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 10px' }}>
         <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, letterSpacing: 0.4 }}>내 준비물 ({me.name})</div>
-        <div style={{ fontSize: 12, color: '#555' }}>{personalCount}/{PERSONAL_ITEMS.length} 완료</div>
+        <div style={{ fontSize: 12, color: '#555' }}>{personalCount}/{DEFAULT_PERSONAL_ITEMS.length} 완료</div>
       </div>
-      {PERSONAL_ITEMS.map((item) => (
+      {DEFAULT_PERSONAL_ITEMS.map((item) => (
         <CheckItem key={item.id} text={item.text} done={!!personalDone[item.id]}
           onToggle={() => togglePersonal(item.id, personalDone[item.id])} />
       ))}
 
       <button onClick={onNext} style={{
         width: '100%', marginTop: 20, padding: '13px 0', borderRadius: 12,
-        border: 'none', background: '#185FA5', color: '#fff', fontSize: 15, fontWeight: 600,
+        border: 'none', background: '#185FA5', color: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer',
       }}>
         💸 정산으로 →
       </button>
