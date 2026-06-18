@@ -15,11 +15,19 @@ export default function SplashScreen({ onDone, dataReady }) {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (prefersReduced) { onDone(); return }
 
+    // Firebase 응답 없을 때를 대비한 최대 대기 2초
+    const maxTimer = setTimeout(() => {
+      setFade(true)
+      setTimeout(onDone, 400)
+    }, 2000)
+
     if (minTimePassed && dataReady) {
+      clearTimeout(maxTimer)
       setFade(true)
       const t = setTimeout(onDone, 400)
-      return () => clearTimeout(t)
+      return () => { clearTimeout(t); clearTimeout(maxTimer) }
     }
+    return () => clearTimeout(maxTimer)
   }, [minTimePassed, dataReady, onDone])
 
   return (
