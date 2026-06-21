@@ -28,6 +28,98 @@ function PensionSearch({ destination }) {
   )
 }
 
+// 펜션 링크 자동 미리보기
+function PensionForm({ me, onSubmit, onCancel }) {
+  const [form, setForm] = useState({ name: '', url: '', price: '', desc: '' })
+  const [preview, setPreview] = useState(null)
+  const [fetching, setFetching] = useState(false)
+  const [fetchError, setFetchError] = useState(null)
+
+  async function handlePreview() {
+    if (!form.url.trim()) return
+    setFetching(true)
+    setFetchError(null)
+    try {
+      const res = await fetch(`/.netlify/functions/og-preview?url=${encodeURIComponent(form.url.trim())}`)
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setPreview(data)
+      setForm((f) => ({
+        ...f,
+        name: f.name || data.title || '',
+        desc: f.desc || data.description || '',
+        price: f.price || data.price || '',
+      }))
+    } catch (e) {
+      setFetchError('링크에서 정보를 가져오지 못했어요. 직접 입력해주세요.')
+    } finally {
+      setFetching(false)
+    }
+  }
+
+  function handleSubmit() {
+    if (!form.name.trim()) return alert('펜션 이름을 입력해주세요')
+    onSubmit({ ...form, previewImage: preview?.image || null, who: me.name })
+  }
+
+  return (
+    <div style={{ border: '0.5px dashed #ccc', borderRadius: 12, padding: '14px', marginBottom: 8 }}>
+      {/* URL + 미리보기 버튼 */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        <input
+          placeholder="🔗 예약 링크 붙여넣기 (여기어때·야놀자·네이버)"
+          value={form.url}
+          onChange={(e) => setForm({ ...form, url: e.target.value })}
+          style={inp}
+        />
+        <button
+          onClick={handlePreview}
+          disabled={fetching || !form.url.trim()}
+          style={{
+            padding: '9px 12px', borderRadius: 8, border: 'none',
+            background: fetching ? '#ccc' : '#185FA5', color: '#fff',
+            fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+          }}
+        >
+          {fetching ? '조회 중...' : '자동 입력'}
+        </button>
+      </div>
+
+      {fetchError && (
+        <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8, padding: '6px 10px', background: '#FCEBEB', borderRadius: 6 }}>
+          {fetchError}
+        </div>
+      )}
+
+      {/* 미리보기 이미지 */}
+      {preview?.image && (
+        <div style={{ marginBottom: 10, borderRadius: 10, overflow: 'hidden', maxHeight: 180 }}>
+          <img
+            src={preview.image}
+            alt="펜션 미리보기"
+            style={{ width: '100%', objectFit: 'cover', maxHeight: 180 }}
+            onError={(e) => e.target.style.display = 'none'}
+          />
+        </div>
+      )}
+
+      {/* 나머지 필드 */}
+      <input placeholder="펜션 이름" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ ...inp, marginBottom: 8 }} />
+      <input placeholder="1박 가격 (예: 30만원)" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ ...inp, marginBottom: 8 }} />
+      <textarea
+        placeholder="특징 메모 (계곡 앞, 6인 독채, 바베큐 가능 등)"
+        value={form.desc}
+        onChange={(e) => setForm({ ...form, desc: e.target.value })}
+        style={{ ...inp, height: 60, resize: 'none', marginBottom: 10 }}
+      />
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onCancel} style={cancelBtn}>취소</button>
+        <button onClick={handleSubmit} style={submitBtn}>등록하기</button>
+      </div>
+    </div>
+  )
+}
+
 const btn = (color, bg, border) => ({
   width: '100%', padding: '11px 0', borderRadius: 10, fontSize: 14,
   fontWeight: 500, border: border || 'none', background: bg, color,
@@ -50,24 +142,18 @@ function DateOptionForm({ onAdd, onCancel }) {
     <div style={{ border: '0.5px dashed #ccc', borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
       <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>날짜 후보 추가</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input placeholder="출발일 (예: 7/4(금))" value={start} onChange={(e) => setStart(e.target.value)}
-          style={inputStyle} />
-        <input placeholder="복귀일 (예: 7/6(일))" value={end} onChange={(e) => setEnd(e.target.value)}
-          style={inputStyle} />
+        <input placeholder="출발일 (예: 7/4(금))" value={start} onChange={(e) => setStart(e.target.value)} style={inp} />
+        <input placeholder="복귀일 (예: 7/6(일))" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} />
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <select value={nights} onChange={(e) => setNights(e.target.value)}
-          style={{ ...inputStyle, flex: 1 }}>
-          <option value={1}>1박 2일</option>
-          <option value={2}>2박 3일</option>
-          <option value={3}>3박 4일</option>
-        </select>
-      </div>
-      <input placeholder="특이사항 메모 (선택)" value={note} onChange={(e) => setNote(e.target.value)}
-        style={{ ...inputStyle, marginBottom: 8 }} />
+      <select value={nights} onChange={(e) => setNights(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
+        <option value={1}>1박 2일</option>
+        <option value={2}>2박 3일</option>
+        <option value={3}>3박 4일</option>
+      </select>
+      <input placeholder="특이사항 메모 (선택)" value={note} onChange={(e) => setNote(e.target.value)} style={{ ...inp, marginBottom: 8 }} />
       <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={onCancel} style={{ flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 13, border: '0.5px solid #ddd', background: '#f5f5f5', color: '#888', cursor: 'pointer' }}>취소</button>
-        <button onClick={handleSubmit} style={{ flex: 2, padding: '9px 0', borderRadius: 8, fontSize: 13, fontWeight: 500, border: 'none', background: '#185FA5', color: '#fff', cursor: 'pointer' }}>추가</button>
+        <button onClick={onCancel} style={cancelBtn}>취소</button>
+        <button onClick={handleSubmit} style={submitBtn}>추가</button>
       </div>
     </div>
   )
@@ -84,13 +170,13 @@ export default function VotePage({ me, tripId, tripMembers }) {
   const [filter, setFilter] = useState(0)
   const [showDateForm, setShowDateForm] = useState(false)
   const [showPensionForm, setShowPensionForm] = useState(false)
-  const [form, setForm] = useState({ name: '', url: '', price: '', desc: '' })
 
-  // 참가자로 필터링된 친구 정보
   const memberMap = Object.fromEntries(friends.map((f) => [f.id, f]))
   const members = tripMembers.map((id) => memberMap[id]).filter(Boolean)
   const memberCount = members.length
+  const isTreasurer = me.role === '총무'
 
+  const filters = [...new Set([0, ...dateOptions.map(d => d.nights)])]
   const filtered = filter === 0 ? dateOptions : dateOptions.filter((d) => d.nights === filter)
 
   function sendAlarm() {
@@ -102,18 +188,8 @@ export default function VotePage({ me, tripId, tripMembers }) {
     navigator.clipboard.writeText(msg).then(() => alert('카톡 단체방에 붙여넣기해줘!\n\n' + msg))
   }
 
-  function submitPension() {
-    if (!form.name.trim()) return alert('펜션 이름을 입력해주세요')
-    addPension({ ...form, who: me.name })
-    setForm({ name: '', url: '', price: '', desc: '' })
-    setShowPensionForm(false)
-  }
-
-  const isTreasurer = me.role === '총무'
-
   return (
     <div style={{ padding: '12px 16px 24px' }}>
-      {/* 알림 버튼 */}
       <button style={btn('#0C447C', '#E6F1FB', '0.5px solid #85B7EB')} onClick={sendAlarm}>
         🔔 카카오톡으로 투표 요청 알림 보내기
       </button>
@@ -121,17 +197,20 @@ export default function VotePage({ me, tripId, tripMembers }) {
       {/* 날짜 필터 */}
       <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, margin: '14px 0 8px', letterSpacing: 0.4 }}>날짜 투표</div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        {[['전체', 0], ['1박 2일', 1], ['2박 3일', 2]].map(([label, val]) => (
-          <button key={val} onClick={() => setFilter(val)} style={{
-            flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 13, border: '0.5px solid',
-            borderColor: filter === val ? '#85B7EB' : '#e0e0e0',
-            background: filter === val ? '#E6F1FB' : '#f5f5f5',
-            color: filter === val ? '#0C447C' : '#888', fontWeight: filter === val ? 500 : 400, cursor: 'pointer',
-          }}>{label}</button>
-        ))}
+        {filters.map((val) => {
+          const label = val === 0 ? '전체' : `${val}박 ${val + 1}일`
+          return (
+            <button key={val} onClick={() => setFilter(val)} style={{
+              flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 13, border: '0.5px solid',
+              borderColor: filter === val ? '#85B7EB' : '#e0e0e0',
+              background: filter === val ? '#E6F1FB' : '#f5f5f5',
+              color: filter === val ? '#0C447C' : '#888', fontWeight: filter === val ? 500 : 400, cursor: 'pointer',
+            }}>{label}</button>
+          )
+        })}
       </div>
 
-      {/* 날짜 카드 목록 */}
+      {/* 날짜 카드 */}
       {filtered.length === 0 && !showDateForm && (
         <div style={{ color: '#ccc', textAlign: 'center', padding: '24px 0', fontSize: 13 }}>
           날짜 후보가 없어요. 아래 버튼으로 추가해주세요.
@@ -140,6 +219,7 @@ export default function VotePage({ me, tripId, tripMembers }) {
 
       {filtered.map((d) => {
         const voters = members.filter((m) => votes[m.id] === d.id)
+        const nonVoters = members.filter((m) => !votes[m.id])
         const pct = memberCount > 0 ? Math.round((voters.length / memberCount) * 100) : 0
         const myVote = votes[me.id] === d.id
         const isConfirmed = confirmedDate === d.id
@@ -149,7 +229,6 @@ export default function VotePage({ me, tripId, tripMembers }) {
             border: isConfirmed ? '2px solid #1D9E75' : myVote ? '2px solid #185FA5' : '0.5px solid #e0e0e0',
             borderRadius: 12, padding: '11px 13px', marginBottom: 8,
             background: isConfirmed ? '#E1F5EE' : myVote ? '#E6F1FB' : '#fff',
-            ...(d.note ? { borderLeft: isConfirmed ? undefined : '3px solid #BA7517' } : {}),
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
@@ -164,6 +243,9 @@ export default function VotePage({ me, tripId, tripMembers }) {
                 </div>
                 <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>
                   가능 {voters.length}명 / {memberCount}명 ({pct}%)
+                  {nonVoters.length > 0 && !isConfirmed && (
+                    <span style={{ color: '#f09595', marginLeft: 6 }}>미투표 {nonVoters.length}명</span>
+                  )}
                 </div>
                 {d.note && <div style={{ fontSize: 11, color: '#854F0B', marginTop: 3 }}>⭐ {d.note}</div>}
               </div>
@@ -175,36 +257,41 @@ export default function VotePage({ me, tripId, tripMembers }) {
               )}
             </div>
 
-            {/* 진행바 + 투표자 */}
-            {voters.length > 0 && (
-              <>
-                <div style={{ height: 4, background: '#eee', borderRadius: 2, margin: '8px 0 5px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: '#185FA5', borderRadius: 2 }} />
-                </div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {voters.map((m) => (
-                    <span key={m.id} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: m.bg, color: m.tc }}>{m.name}</span>
-                  ))}
-                </div>
-              </>
-            )}
+            {/* 진행바 */}
+            <div style={{ height: 4, background: '#eee', borderRadius: 2, margin: '8px 0 6px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: isConfirmed ? '#1D9E75' : '#185FA5', borderRadius: 2, transition: 'width 0.3s' }} />
+            </div>
+
+            {/* 투표한 사람 */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {voters.map((m) => (
+                <span key={m.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: m.bg, color: m.tc }}>
+                  ✓ {m.name}
+                </span>
+              ))}
+              {nonVoters.map((m) => (
+                <span key={m.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#f5f5f5', color: '#bbb' }}>
+                  {m.name}
+                </span>
+              ))}
+            </div>
 
             {/* 버튼 행 */}
             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
               {!myVote && !isConfirmed && (
                 <button onClick={() => castVote(me.id, d.id)} style={{
-                  flex: 2, padding: '7px 0', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                  border: 'none', background: '#185FA5', color: '#E6F1FB', cursor: 'pointer',
-                }}>이 날짜 투표</button>
+                  flex: 2, padding: '8px 0', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  border: 'none', background: '#185FA5', color: '#fff', cursor: 'pointer',
+                }}>✋ 이 날짜 선택</button>
               )}
               {myVote && !isConfirmed && (
-                <span style={{ flex: 2, textAlign: 'center', fontSize: 12, color: '#185FA5', padding: '7px 0', fontWeight: 500 }}>✓ 내가 투표한 날짜</span>
+                <span style={{ flex: 2, textAlign: 'center', fontSize: 13, color: '#185FA5', padding: '8px 0', fontWeight: 600 }}>✓ 내가 선택한 날짜</span>
               )}
               {isTreasurer && !isConfirmed && !confirmedDate && (
                 <button onClick={() => confirm(d.id)} style={{
-                  flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 12,
+                  flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 12,
                   border: '0.5px solid #1D9E75', background: '#fff', color: '#0F6E56', cursor: 'pointer',
-                }}>확정</button>
+                }}>📌 확정</button>
               )}
             </div>
           </div>
@@ -220,53 +307,80 @@ export default function VotePage({ me, tripId, tripMembers }) {
         </button>
       )}
 
-      {/* 펜션 검색 + 공유 게시판 */}
-      <div style={{ margin: '16px 0 8px' }}>
+      {/* 참가자별 투표 현황 */}
+      {members.length > 0 && dateOptions.length > 0 && (
+        <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginTop: 4, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, marginBottom: 10, letterSpacing: 0.4 }}>참가자별 선택 현황</div>
+          {members.map((m) => {
+            const votedId = votes[m.id]
+            const votedDate = votedId ? dateOptions.find((d) => d.id === votedId) : null
+            return (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '0.5px solid #eee' }}>
+                <span style={{ fontSize: 12, padding: '2px 9px', borderRadius: 20, background: m.bg, color: m.tc, flexShrink: 0, fontWeight: 500 }}>
+                  {m.name}
+                </span>
+                <span style={{ fontSize: 13, color: votedDate ? '#333' : '#f09595', flex: 1 }}>
+                  {votedDate ? `${votedDate.start} ~ ${votedDate.end}` : '미선택'}
+                </span>
+                {/* 본인이면 선택 변경 가능 */}
+                {m.id === me.id && votedDate && !confirmedDate && (
+                  <button onClick={() => castVote(me.id, null)} style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 6, border: '0.5px solid #ddd',
+                    background: '#fff', color: '#888', cursor: 'pointer',
+                  }}>변경</button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* 펜션 검색 */}
+      <div style={{ margin: '8px 0 8px' }}>
         <PensionSearch destination={meta?.destination} />
       </div>
       <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>펜션 공유 게시판</div>
 
       {pensions.map((p) => (
-        <div key={p.key} style={{ border: '0.5px solid #e0e0e0', borderRadius: 12, padding: '12px 14px', marginBottom: 8, background: '#fff' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</div>
-            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F1EFE8', color: '#444441' }}>{p.who}</span>
-          </div>
-          {p.desc && <div style={{ fontSize: 12, color: '#666', marginTop: 4, lineHeight: 1.5 }}>{p.desc}</div>}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 500 }}>{p.price || '가격 미입력'}/박</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {p.url && p.url !== '#' && (
-                <a href={p.url} target="_blank" rel="noreferrer" style={{
-                  padding: '5px 10px', borderRadius: 8, fontSize: 12, border: '0.5px solid #e0e0e0',
-                  background: '#f5f5f5', color: '#555', textDecoration: 'none',
-                }}>예약 링크 →</a>
-              )}
-              {p.who === me.name && (
-                <button onClick={() => removePension(p.key)} style={{
-                  padding: '5px 8px', borderRadius: 8, fontSize: 12,
-                  border: '0.5px solid #f09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer',
-                }}>삭제</button>
-              )}
+        <div key={p.key} style={{ border: '0.5px solid #e0e0e0', borderRadius: 12, marginBottom: 8, background: '#fff', overflow: 'hidden' }}>
+          {/* 미리보기 이미지 */}
+          {p.previewImage && (
+            <img src={p.previewImage} alt="" style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }}
+              onError={(e) => e.target.style.display = 'none'} />
+          )}
+          <div style={{ padding: '12px 14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>{p.name}</div>
+              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#F1EFE8', color: '#444', flexShrink: 0, marginLeft: 8 }}>{p.who}</span>
+            </div>
+            {p.desc && <div style={{ fontSize: 12, color: '#666', marginTop: 4, lineHeight: 1.5 }}>{p.desc}</div>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{p.price || '가격 미입력'}/박</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {p.url && p.url !== '#' && (
+                  <a href={p.url} target="_blank" rel="noreferrer" style={{
+                    padding: '5px 10px', borderRadius: 8, fontSize: 12, border: '0.5px solid #e0e0e0',
+                    background: '#f5f5f5', color: '#555', textDecoration: 'none',
+                  }}>예약 링크 →</a>
+                )}
+                {p.who === me.name && (
+                  <button onClick={() => removePension(p.key)} style={{
+                    padding: '5px 8px', borderRadius: 8, fontSize: 12,
+                    border: '0.5px solid #f09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer',
+                  }}>삭제</button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       ))}
 
       {showPensionForm ? (
-        <div style={{ border: '0.5px dashed #ccc', borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
-          {[['name', '펜션 이름'], ['url', '예약 링크 (여기어때·야놀자)'], ['price', '1박 가격 (예: 30만원)']].map(([k, ph]) => (
-            <input key={k} placeholder={ph} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-              style={{ width: '100%', marginBottom: 8, padding: '9px 12px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
-          ))}
-          <textarea placeholder="특징 메모 (계곡 바로 앞, 6인 독채 등)" value={form.desc}
-            onChange={(e) => setForm({ ...form, desc: e.target.value })}
-            style={{ width: '100%', height: 60, marginBottom: 8, padding: '9px 12px', borderRadius: 8, border: '0.5px solid #ddd', resize: 'none', fontSize: 13, boxSizing: 'border-box' }} />
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => setShowPensionForm(false)} style={{ flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 13, border: '0.5px solid #ddd', background: '#f5f5f5', color: '#888', cursor: 'pointer' }}>취소</button>
-            <button onClick={submitPension} style={{ flex: 2, padding: '9px 0', borderRadius: 8, fontSize: 13, fontWeight: 500, border: 'none', background: '#185FA5', color: '#fff', cursor: 'pointer' }}>등록하기</button>
-          </div>
-        </div>
+        <PensionForm
+          me={me}
+          onSubmit={(data) => { addPension(data); setShowPensionForm(false) }}
+          onCancel={() => setShowPensionForm(false)}
+        />
       ) : (
         <button style={btn('#555', '#f5f5f5', '0.5px solid #ddd')} onClick={() => setShowPensionForm(true)}>
           + 내가 찾은 펜션 공유하기
@@ -276,4 +390,6 @@ export default function VotePage({ me, tripId, tripMembers }) {
   )
 }
 
-const inputStyle = { flex: 1, padding: '9px 12px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13, boxSizing: 'border-box' }
+const inp = { flex: 1, padding: '9px 12px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13, boxSizing: 'border-box', width: '100%' }
+const cancelBtn = { flex: 1, padding: '9px 0', borderRadius: 8, fontSize: 13, border: '0.5px solid #ddd', background: '#f5f5f5', color: '#888', cursor: 'pointer' }
+const submitBtn = { flex: 2, padding: '9px 0', borderRadius: 8, fontSize: 13, fontWeight: 500, border: 'none', background: '#185FA5', color: '#fff', cursor: 'pointer' }
