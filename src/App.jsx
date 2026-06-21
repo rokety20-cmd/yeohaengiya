@@ -89,59 +89,43 @@ export default function App() {
     setScreen('tripSelect')
   }, [])
 
-  if (!splashDone) return <SplashScreen onDone={handleSplashDone} />
-
   return (
-    <div style={styles.appShell}>
-      {screen === 'friends' && (
-        <div style={styles.panelPage}>
-          <FriendsPage onBack={() => setScreen('tripSelect')} />
-        </div>
-      )}
-      {screen === 'tripSetup' && selectedTripId && (
-        <div style={styles.panelPage}>
-          <TripSetupPage
-            tripId={selectedTripId}
-            onReady={handleTripReady}
-            onBack={() => setScreen('tripSelect')}
-          />
-        </div>
-      )}
-      {screen === 'trip' && selectedTripId && me && (
-        <TripApp tripId={selectedTripId} me={me} onExit={handleExit} />
-      )}
-      {screen === 'tripSelect' && (
-        <div style={styles.panelPage}>
-          <TripSelectPage
-            onSelect={handleTripSelect}
-            onManageFriends={() => setScreen('friends')}
-          />
-        </div>
+    <div className="app-frame">
+      {/* 스플래시: 프레임 안에서만 덮음 */}
+      {!splashDone && <SplashScreen onDone={handleSplashDone} />}
+
+      {splashDone && (
+        <>
+          {screen === 'friends' && (
+            <FriendsPage onBack={() => setScreen('tripSelect')} />
+          )}
+          {screen === 'tripSetup' && selectedTripId && (
+            <TripSetupPage
+              tripId={selectedTripId}
+              onReady={handleTripReady}
+              onBack={() => setScreen('tripSelect')}
+            />
+          )}
+          {screen === 'trip' && selectedTripId && me && (
+            <TripApp tripId={selectedTripId} me={me} onExit={handleExit} />
+          )}
+          {screen === 'tripSelect' && (
+            <TripSelectPage
+              onSelect={handleTripSelect}
+              onManageFriends={() => setScreen('friends')}
+            />
+          )}
+        </>
       )}
     </div>
   )
 }
 
 const styles = {
-  appShell: {
-    minHeight: '100vh',
-    background: '#f4f4f4',
-    display: 'flex',
-    justifyContent: 'center',
-  },
-  panelPage: {
-    width: '100%',
-    maxWidth: 520,
-    background: '#fff',
-    minHeight: '100vh',
-    boxShadow: '0 0 40px rgba(0,0,0,0.06)',
-  },
   tripApp: {
     width: '100%',
-    maxWidth: 680,
     background: '#fff',
     minHeight: '100vh',
-    boxShadow: '0 0 40px rgba(0,0,0,0.06)',
     display: 'flex',
     flexDirection: 'column',
   },

@@ -145,7 +145,7 @@ export default function FriendsPage({ onBack }) {
 }
 
 const styles = {
-  wrap: { maxWidth: 430, margin: '0 auto', background: '#fff', minHeight: '100vh' },
+  wrap: { background: '#fff', minHeight: '100vh' },
   center: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#aaa' },
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '0.5px solid #f0f0f0' },
   backBtn: { fontSize: 14, color: '#185FA5', background: 'none', border: 'none', cursor: 'pointer', padding: 0 },

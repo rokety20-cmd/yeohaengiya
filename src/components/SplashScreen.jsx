@@ -13,16 +13,17 @@ export default function SplashScreen({ onDone }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: '#000',
+      position: 'absolute', inset: 0, background: '#000',
       opacity: fade ? 0 : 1,
       transition: 'opacity 0.4s ease',
       zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '100vh',
     }}>
       <img
         src="/splash.gif"
         alt=""
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: '100vh' }}
       />
     </div>
   )

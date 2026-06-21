@@ -94,7 +94,7 @@ export default function TripSelectPage({ onSelect, onManageFriends }) {
 }
 
 const styles = {
-  wrap: { maxWidth: 430, margin: '0 auto', background: '#fff', minHeight: '100vh' },
+  wrap: { background: '#fff', minHeight: '100vh' },
   center: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#aaa' },
   header: { padding: '20px 18px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '0.5px solid #f0f0f0' },
   logo: { fontSize: 18, fontWeight: 700 },

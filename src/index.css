@@ -1,0 +1,122 @@
+/* ─── 글로벌 리셋 ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── CSS 변수 (모바일 기본) ─── */
+:root {
+  --fxs:  11px;
+  --fsm:  13px;
+  --fmd:  15px;
+  --flg:  17px;
+  --fxl:  20px;
+  --r-card: 0px;         /* 모바일: 둥글기 없음 */
+  --shadow-card: none;
+  --pad-x: 16px;
+  --pad-y: 12px;
+  --btn-h: 44px;         /* 터치 최소 44px */
+}
+
+/* ─── 태블릿 (640px+) ─── */
+@media (min-width: 640px) {
+  :root {
+    --fxs:  11px;
+    --fsm:  12px;
+    --fmd:  14px;
+    --flg:  16px;
+    --fxl:  18px;
+    --r-card: 20px;
+    --shadow-card: 0 4px 40px rgba(0,0,0,0.13);
+    --pad-x: 18px;
+    --pad-y: 14px;
+    --btn-h: 40px;
+  }
+}
+
+/* ─── 데스크탑 (1024px+) ─── */
+@media (min-width: 1024px) {
+  :root {
+    --fxs:  10px;
+    --fsm:  12px;
+    --fmd:  13px;
+    --flg:  15px;
+    --fxl:  17px;
+    --pad-x: 16px;
+    --pad-y: 12px;
+    --btn-h: 38px;
+  }
+}
+
+/* ─── 바디 ─── */
+html, body {
+  height: 100%;
+  font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  background: #e8eaed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #222;
+  font-size: var(--fmd);
+}
+
+/* ─── 루트 래퍼: 중앙 정렬 ─── */
+#root {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+  background: #e8eaed;
+}
+
+/* ─── 앱 카드 (모바일: 전체 / 태블릿+: 폰 프레임) ─── */
+.app-frame {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  background: #fff;
+  position: relative;
+  overflow-x: hidden;
+}
+
+@media (min-width: 640px) {
+  .app-frame {
+    min-height: auto;
+    margin: 20px 0;
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-card);
+    /* 내부 스크롤 */
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+}
+
+/* ─── 스플래시: 프레임 내부에만 ─── */
+.splash-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── 스크롤바 숨기기 (webkit) ─── */
+.app-frame::-webkit-scrollbar { display: none; }
+.app-frame { scrollbar-width: none; }
+
+/* ─── 버튼 기본 초기화 ─── */
+button { font-family: inherit; }
+
+/* ─── 입력 기본 ─── */
+input, textarea, select {
+  font-family: inherit;
+  font-size: var(--fmd);
+}
+
+/* ─── 반응형 유틸 클래스 ─── */
+.f-xs { font-size: var(--fxs) !important; }
+.f-sm { font-size: var(--fsm) !important; }
+.f-md { font-size: var(--fmd) !important; }
+.f-lg { font-size: var(--flg) !important; }
