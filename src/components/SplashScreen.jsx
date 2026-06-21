@@ -6,9 +6,6 @@ export default function SplashScreen({ onDone }) {
   const [fade, setFade] = useState(false)
 
   useEffect(() => {
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReduced) { onDone(); return }
-
     const t1 = setTimeout(() => setFade(true), GIF_DURATION)
     const t2 = setTimeout(onDone, GIF_DURATION + 400)
     return () => { clearTimeout(t1); clearTimeout(t2) }
