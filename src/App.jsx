@@ -49,7 +49,7 @@ function TripApp({ tripId, me, onExit }) {
       <div style={styles.pageContent}>
         {step === 'vote' && <VotePage me={me} tripId={tripId} tripMembers={memberIds} />}
         {step === 'prep' && <PrepPage me={me} tripId={tripId} onNext={() => setStep('cost')} />}
-        {step === 'cost' && <CostPage tripId={tripId} tripMembers={memberIds} />}
+        {step === 'cost' && <CostPage me={me} tripId={tripId} tripMembers={memberIds} />}
       </div>
     </div>
   )

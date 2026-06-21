@@ -127,33 +127,55 @@ const btn = (color, bg, border) => ({
   marginBottom: 8, cursor: 'pointer',
 })
 
+const DAY_KO = ['일', '월', '화', '수', '목', '금', '토']
+function fmtKo(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getMonth() + 1}/${d.getDate()}(${DAY_KO[d.getDay()]})`
+}
+
 function DateOptionForm({ onAdd, onCancel }) {
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
-  const [nights, setNights] = useState(2)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [note, setNote] = useState('')
 
+  const nights = (startDate && endDate)
+    ? Math.round((new Date(endDate) - new Date(startDate)) / 86400000)
+    : 0
+
   function handleSubmit() {
-    if (!start.trim() || !end.trim()) return
-    onAdd({ start: start.trim(), end: end.trim(), nights: Number(nights), note: note.trim() || null })
+    if (!startDate || !endDate) return alert('날짜를 선택해주세요')
+    if (nights <= 0) return alert('복귀일이 출발일보다 늦어야 해요')
+    onAdd({ start: fmtKo(startDate), end: fmtKo(endDate), nights, note: note.trim() || null })
   }
 
   return (
-    <div style={{ border: '0.5px dashed #ccc', borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>날짜 후보 추가</div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input placeholder="출발일 (예: 7/4(금))" value={start} onChange={(e) => setStart(e.target.value)} style={inp} />
-        <input placeholder="복귀일 (예: 7/6(일))" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} />
+    <div style={{ border: '0.5px dashed #ccc', borderRadius: 12, padding: '14px', marginBottom: 8 }}>
+      <div style={{ fontSize: 12, color: '#888', marginBottom: 10, fontWeight: 500 }}>날짜 후보 추가</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>출발일</div>
+          <input type="date" value={startDate}
+            onChange={(e) => { setStartDate(e.target.value); if (endDate && e.target.value >= endDate) setEndDate('') }}
+            style={{ ...inp, width: '100%' }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>복귀일</div>
+          <input type="date" value={endDate} min={startDate || undefined}
+            onChange={(e) => setEndDate(e.target.value)}
+            style={{ ...inp, width: '100%' }} />
+        </div>
       </div>
-      <select value={nights} onChange={(e) => setNights(e.target.value)} style={{ ...inp, marginBottom: 8 }}>
-        <option value={1}>1박 2일</option>
-        <option value={2}>2박 3일</option>
-        <option value={3}>3박 4일</option>
-      </select>
-      <input placeholder="특이사항 메모 (선택)" value={note} onChange={(e) => setNote(e.target.value)} style={{ ...inp, marginBottom: 8 }} />
+      {nights > 0 && (
+        <div style={{ background: '#E6F1FB', borderRadius: 8, padding: '7px 12px', marginBottom: 10, fontSize: 13, color: '#0C447C', fontWeight: 500 }}>
+          📅 {fmtKo(startDate)} ~ {fmtKo(endDate)} &nbsp;·&nbsp; {nights}박 {nights + 1}일
+        </div>
+      )}
+      <input placeholder="메모 (선택, 예: 주말 피크 시즌)" value={note}
+        onChange={(e) => setNote(e.target.value)} style={{ ...inp, marginBottom: 10 }} />
       <div style={{ display: 'flex', gap: 6 }}>
         <button onClick={onCancel} style={cancelBtn}>취소</button>
-        <button onClick={handleSubmit} style={submitBtn}>추가</button>
+        <button onClick={handleSubmit} style={submitBtn} disabled={nights <= 0}>추가</button>
       </div>
     </div>
   )

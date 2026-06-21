@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ref, onValue, set, push, update, get } from 'firebase/database'
+import { ref, onValue, set, push, update, get, remove } from 'firebase/database'
 import { db } from '../firebase'
 
 const tripsRef = () => ref(db, 'trips')
@@ -29,7 +29,7 @@ export function useTrips() {
     return () => { unsub(); clearTimeout(timeout) }
   }, [])
 
-  const createTrip = useCallback(async (title, destination = '') => {
+  const createTrip = useCallback(async (title, destination = '', deletePassword = '') => {
     const newRef = push(tripsRef())
     await set(newRef, {
       meta: {
@@ -38,12 +38,21 @@ export function useTrips() {
         status: 'planning',
         confirmedDate: null,
         createdAt: Date.now(),
+        deletePassword: deletePassword || null,
       },
     })
     return newRef.key
   }, [])
 
-  return { trips, loading, createTrip }
+  const deleteTrip = useCallback(async (tripId, password) => {
+    const snap = await get(tripPath(tripId, 'meta'))
+    const meta = snap.val()
+    if (!meta?.deletePassword) throw new Error('삭제 비밀번호가 설정되지 않은 여행이에요')
+    if (meta.deletePassword !== password) throw new Error('비밀번호가 틀렸어요 🔐')
+    await remove(tripRef(tripId))
+  }, [])
+
+  return { trips, loading, createTrip, deleteTrip }
 }
 
 // 단일 여행 메타

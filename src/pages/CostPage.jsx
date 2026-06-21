@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useCostItems } from '../hooks/useCostItems'
 import { usePackingItems } from '../hooks/usePackingItems'
+import { useTripMeta } from '../hooks/useTrips'
 
 function AddItemRow({ onAdd, packingItems }) {
   const [show, setShow] = useState(false)
@@ -11,15 +12,7 @@ function AddItemRow({ onAdd, packingItems }) {
   function handleAdd() {
     if (!label.trim() || !totalAmount) return
     onAdd(label.trim(), totalAmount)
-    setLabel('')
-    setTotalAmount('')
-    setShow(false)
-    setShowPicker(false)
-  }
-
-  function pickPrep(text) {
-    setLabel(text)
-    setShowPicker(false)
+    setLabel(''); setTotalAmount(''); setShow(false); setShowPicker(false)
   }
 
   if (!show) return (
@@ -33,35 +26,24 @@ function AddItemRow({ onAdd, packingItems }) {
     <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginTop: 4 }}>
       <div style={{ position: 'relative', marginBottom: 8 }}>
         <div style={{ display: 'flex', gap: 6 }}>
-          <input
-            autoFocus
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
+          <input autoFocus value={label} onChange={(e) => setLabel(e.target.value)}
             placeholder="항목 이름"
-            style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13 }}
-          />
+            style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13 }} />
           <button onClick={() => setShowPicker(!showPicker)} style={{
             padding: '8px 10px', borderRadius: 8, border: '0.5px solid #85B7EB',
             background: '#E6F1FB', color: '#0C447C', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
           }}>준비물 선택</button>
         </div>
-
-        {/* 준비물 피커 드롭다운 */}
         {showPicker && packingItems.length > 0 && (
           <div style={{
             position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
             background: '#fff', border: '0.5px solid #e0e0e0', borderRadius: 10,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto',
-            marginTop: 4,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto', marginTop: 4,
           }}>
             {packingItems.map((item) => (
-              <div key={item.id} onClick={() => pickPrep(item.text)} style={{
-                padding: '9px 12px', fontSize: 13, cursor: 'pointer', borderBottom: '0.5px solid #f5f5f5',
-                color: '#333',
-              }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
+              <div key={item.id} onClick={() => { setLabel(item.text); setShowPicker(false) }} style={{
+                padding: '9px 12px', fontSize: 13, cursor: 'pointer', borderBottom: '0.5px solid #f5f5f5', color: '#333',
+              }}>
                 {item.text}
                 <span style={{ fontSize: 11, color: '#aaa', marginLeft: 6 }}>
                   {item.category === 'shared' ? '공동' : '개인'}
@@ -71,68 +53,134 @@ function AddItemRow({ onAdd, packingItems }) {
           </div>
         )}
       </div>
-
       <div style={{ display: 'flex', gap: 6 }}>
-        <input
-          type="number"
-          value={totalAmount}
+        <input type="number" value={totalAmount}
           onChange={(e) => setTotalAmount(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           placeholder="총 금액 (원)"
-          style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13 }}
-        />
-        <button onClick={handleAdd} style={{
-          padding: '8px 14px', borderRadius: 8, border: 'none', background: '#185FA5',
-          color: '#fff', fontSize: 13, cursor: 'pointer',
-        }}>추가</button>
-        <button onClick={() => { setShow(false); setShowPicker(false) }} style={{
-          padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd',
-          background: '#f5f5f5', color: '#888', fontSize: 13, cursor: 'pointer',
-        }}>✕</button>
+          style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13 }} />
+        <button onClick={handleAdd} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontSize: 13, cursor: 'pointer' }}>추가</button>
+        <button onClick={() => { setShow(false); setShowPicker(false) }} style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: '#f5f5f5', color: '#888', fontSize: 13, cursor: 'pointer' }}>✕</button>
       </div>
-      <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
-        총 금액 입력 → 인원수로 나눠 1인당 금액 계산
-      </div>
+      <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>총 금액 입력 → 인원수로 나눠 1인당 계산</div>
     </div>
   )
 }
 
-export default function CostPage({ tripId, tripMembers }) {
+// 계좌 등록 / 복사 섹션
+function AccountSection({ meta, updateMeta, isTreasurer }) {
+  const account = meta?.account
+  const [editing, setEditing] = useState(false)
+  const [bank, setBank] = useState(account?.bank ?? '')
+  const [number, setNumber] = useState(account?.number ?? '')
+  const [holder, setHolder] = useState(account?.holder ?? '')
+
+  async function handleSave() {
+    await updateMeta({ account: { bank: bank.trim(), number: number.trim(), holder: holder.trim() } })
+    setEditing(false)
+  }
+
+  function handleCopy() {
+    const text = `${account.bank} ${account.number} (${account.holder})`
+    navigator.clipboard.writeText(text).then(() => alert(`복사됨!\n${text}`))
+  }
+
+  if (!account?.number && !isTreasurer) return null
+
+  return (
+    <div style={{ background: '#FAEEDA', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
+      <div style={{ fontSize: 11, color: '#633806', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>
+        💰 정산 계좌 {isTreasurer ? '(내 계좌)' : ''}
+      </div>
+
+      {editing || !account?.number ? (
+        <>
+          <input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="은행명 (예: 카카오뱅크)"
+            style={inp} />
+          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="계좌번호"
+            style={{ ...inp, marginTop: 6 }} />
+          <input value={holder} onChange={(e) => setHolder(e.target.value)} placeholder="예금주"
+            style={{ ...inp, marginTop: 6, marginBottom: 8 }} />
+          <div style={{ display: 'flex', gap: 6 }}>
+            {account?.number && <button onClick={() => setEditing(false)} style={cancelBtn}>취소</button>}
+            <button onClick={handleSave} style={saveBtn}>저장</button>
+          </div>
+        </>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+              {account.bank} {account.number}
+            </div>
+            <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>예금주: {account.holder}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={handleCopy} style={{
+              padding: '7px 14px', borderRadius: 8, border: 'none',
+              background: '#E07B00', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}>복사</button>
+            {isTreasurer && (
+              <button onClick={() => { setBank(account.bank); setNumber(account.number); setHolder(account.holder); setEditing(true) }} style={{
+                padding: '7px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: '#fff', fontSize: 12, color: '#888', cursor: 'pointer',
+              }}>수정</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const NIGHTS_OPTIONS = [1, 2, 3, 4, 5]
+
+export default function CostPage({ me, tripId, tripMembers }) {
   const headCount = tripMembers.length || 1
   const [nights, setNights] = useState(2)
   const [pensionTotal, setPensionTotal] = useState(300000)
   const { items, loading, addItem, updateAmount, deleteItem, seedDefaults } = useCostItems(tripId)
   const { sharedItems, personalItems } = usePackingItems(tripId)
+  const { meta, updateMeta } = useTripMeta(tripId)
 
   const allPackingItems = [...sharedItems, ...personalItems]
   const pensionPerPerson = Math.round((Number(pensionTotal) * nights) / headCount)
   const itemsTotal = items.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0)
   const total = pensionPerPerson + Math.round(itemsTotal / headCount)
+  const isTreasurer = me?.role === '총무'
 
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: '#aaa' }}>불러오는 중...</div>
 
   return (
     <div style={{ padding: '12px 16px 32px' }}>
+      {/* 계좌 섹션 */}
+      <AccountSection meta={meta} updateMeta={updateMeta} isTreasurer={isTreasurer} />
+
       {/* 참가자 수 */}
-      <div style={{ background: '#f9f9f9', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#555' }}>
+      <div style={{ background: '#f9f9f9', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#555' }}>
         👥 참가자: <strong>{headCount}명</strong>
         {tripMembers.length === 0 && <span style={{ color: '#f09595', marginLeft: 6 }}>(참가자를 먼저 설정해주세요)</span>}
       </div>
 
-      {/* 박수 선택 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {[1, 2].map((n) => (
-          <button key={n} onClick={() => setNights(n)} style={{
-            flex: 1, padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 500,
-            border: '0.5px solid', borderColor: nights === n ? '#185FA5' : '#e0e0e0',
-            background: nights === n ? '#E6F1FB' : '#f5f5f5',
-            color: nights === n ? '#0C447C' : '#888', cursor: 'pointer',
-          }}>{n}박 {n + 1}일</button>
-        ))}
+      {/* 박수 선택 — 넓은 버튼 */}
+      <div style={{ marginBottom: 6 }}>
+        <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>몇 박?</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+          {NIGHTS_OPTIONS.map((n) => (
+            <button key={n} onClick={() => setNights(n)} style={{
+              padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 500,
+              border: '0.5px solid', borderColor: nights === n ? '#185FA5' : '#e0e0e0',
+              background: nights === n ? '#E6F1FB' : '#f5f5f5',
+              color: nights === n ? '#0C447C' : '#888', cursor: 'pointer',
+              lineHeight: 1.3,
+            }}>
+              <div>{n}박</div>
+              <div style={{ fontSize: 10 }}>{n + 1}일</div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 펜션 총액 */}
-      <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginBottom: 12 }}>
+      <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginBottom: 12, marginTop: 14 }}>
         <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>🏡 펜션 {nights}박 총 금액 (원)</div>
         <input
           type="number"
@@ -197,9 +245,19 @@ export default function CostPage({ tripId, tripMembers }) {
         </div>
       </div>
 
-      <div style={{ marginTop: 14, fontSize: 12, color: '#bbb', lineHeight: 1.7, textAlign: 'center' }}>
+      {/* 총무 계좌 미등록 안내 */}
+      {isTreasurer && !meta?.account?.number && (
+        <div style={{ marginTop: 12, fontSize: 12, color: '#E07B00', textAlign: 'center' }}>
+          위에서 계좌를 등록하면 팀원들이 바로 복사할 수 있어요 💳
+        </div>
+      )}
+      <div style={{ marginTop: 10, fontSize: 12, color: '#bbb', lineHeight: 1.7, textAlign: 'center' }}>
         실제 금액 입력 후 총무가 정산 확정해줘 💰
       </div>
     </div>
   )
 }
+
+const inp = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13, boxSizing: 'border-box' }
+const cancelBtn = { flex: 1, padding: '8px 0', borderRadius: 8, border: '0.5px solid #ddd', background: '#fff', color: '#888', fontSize: 13, cursor: 'pointer' }
+const saveBtn = { flex: 2, padding: '8px 0', borderRadius: 8, border: 'none', background: '#E07B00', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }
