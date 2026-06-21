@@ -1,32 +1,18 @@
 import { useEffect, useState } from 'react'
 
-const IMAGES = [
-  '/intro1.jpg',
-  '/intro2.jpg',
-  '/intro3.jpg',
-  '/intro4.jpg',
-  '/intro5.jpg',
-]
-const DURATION = 800 // 장당 0.8초
+const GIF_DURATION = 3000 // GIF 재생 시간 (ms) — GIF 길이에 맞게 조정
 
 export default function SplashScreen({ onDone }) {
-  const [index, setIndex] = useState(0)
   const [fade, setFade] = useState(false)
 
   useEffect(() => {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (prefersReduced) { onDone(); return }
 
-    if (index < IMAGES.length - 1) {
-      const t = setTimeout(() => setIndex((i) => i + 1), DURATION)
-      return () => clearTimeout(t)
-    } else {
-      // 마지막 이미지 → 페이드아웃
-      const t1 = setTimeout(() => setFade(true), DURATION)
-      const t2 = setTimeout(onDone, DURATION + 400)
-      return () => { clearTimeout(t1); clearTimeout(t2) }
-    }
-  }, [index, onDone])
+    const t1 = setTimeout(() => setFade(true), GIF_DURATION)
+    const t2 = setTimeout(onDone, GIF_DURATION + 400)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [onDone])
 
   return (
     <div style={{
@@ -34,20 +20,13 @@ export default function SplashScreen({ onDone }) {
       opacity: fade ? 0 : 1,
       transition: 'opacity 0.4s ease',
       zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      {IMAGES.map((src, i) => (
-        <img
-          key={src}
-          src={src}
-          alt=""
-          style={{
-            position: 'absolute', inset: 0,
-            width: '100%', height: '100%', objectFit: 'cover',
-            opacity: index === i ? 1 : 0,
-            transition: 'opacity 0.2s ease',
-          }}
-        />
-      ))}
+      <img
+        src="/splash.gif"
+        alt=""
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      />
     </div>
   )
 }
