@@ -1,4 +1,5 @@
 const STEPS = [
+  { id: 'home', label: '홈',      icon: '🏠' },
   { id: 'vote', label: '날짜 투표', icon: '📅' },
   { id: 'prep', label: '준비물',   icon: '🎒' },
   { id: 'cost', label: '정산',     icon: '💸' },

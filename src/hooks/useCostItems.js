@@ -28,12 +28,16 @@ export function useCostItems(tripId) {
     return () => { unsub(); clearTimeout(timeout) }
   }, [tripId])
 
-  // totalAmount = 총 금액 (인원수로 나눠서 1인당 계산)
-  const addItem = useCallback((label, totalAmount) => {
+  const addExpense = useCallback((label, totalAmount, payerId, participantIds, category = 'other', linkedPackingItemId = null) => {
     if (!tripId || !label.trim()) return
     push(costRef(tripId), {
       label: label.trim(),
       totalAmount: Math.round(Number(totalAmount) || 0),
+      payerId,
+      participantIds: participantIds ?? [],
+      category,
+      linkedPackingItemId,
+      isDeleted: false,
       createdAt: Date.now(),
     })
   }, [tripId])
@@ -49,16 +53,24 @@ export function useCostItems(tripId) {
   }, [tripId])
 
   // 기본 항목 시드 (headCount 기준으로 총 금액 계산)
-  const seedDefaults = useCallback((headCount = 6) => {
+  const seedExpenses = useCallback((headCount = 6, memberIds = []) => {
     if (!tripId) return
     DEFAULT_COST_ITEMS.filter((i) => !i.perNight).forEach((i) => {
       push(costRef(tripId), {
         label: i.label,
         totalAmount: i.amount * headCount,
+        payerId: memberIds[0] ?? null,
+        participantIds: memberIds,
+        category: 'other',
+        linkedPackingItemId: null,
+        isDeleted: false,
         createdAt: Date.now(),
       })
     })
   }, [tripId])
 
-  return { items, loading, addItem, updateAmount, deleteItem, seedDefaults }
+  return { items, loading, addExpense, updateAmount, deleteItem, seedExpenses }
 }
+
+// alias
+export const useExpenses = useCostItems

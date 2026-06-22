@@ -2,6 +2,15 @@ import { useEffect, useState, useCallback } from 'react'
 import { ref, onValue, set, push, update, get, remove } from 'firebase/database'
 import { db } from '../firebase'
 
+function hashStr(s) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = (Math.imul(h, 0x01000193)) >>> 0
+  }
+  return h.toString(36)
+}
+
 const tripsRef = () => ref(db, 'trips')
 const tripRef = (id) => ref(db, `trips/${id}`)
 const tripPath = (id, path) => ref(db, `trips/${id}/${path}`)
@@ -38,7 +47,7 @@ export function useTrips() {
         status: 'planning',
         confirmedDate: null,
         createdAt: Date.now(),
-        deletePassword: deletePassword || null,
+        deletePassword: deletePassword ? hashStr(deletePassword) : null,
       },
     })
     return newRef.key
@@ -48,7 +57,7 @@ export function useTrips() {
     const snap = await get(tripPath(tripId, 'meta'))
     const meta = snap.val()
     if (!meta?.deletePassword) throw new Error('삭제 비밀번호가 설정되지 않은 여행이에요')
-    if (meta.deletePassword !== password) throw new Error('비밀번호가 틀렸어요 🔐')
+    if (meta.deletePassword !== hashStr(password) && meta.deletePassword !== password) throw new Error('비밀번호가 틀렸어요 🔐')
     await remove(tripRef(tripId))
   }, [])
 

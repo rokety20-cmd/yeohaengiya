@@ -1,73 +1,17 @@
 import { useState } from 'react'
 import { useCostItems } from '../hooks/useCostItems'
-import { usePackingItems } from '../hooks/usePackingItems'
 import { useTripMeta } from '../hooks/useTrips'
+import { useFriends } from '../hooks/useFriends'
+import { splitEvenly, calculateSettlement } from '../utils/settlement'
 
-function AddItemRow({ onAdd, packingItems }) {
-  const [show, setShow] = useState(false)
-  const [label, setLabel] = useState('')
-  const [totalAmount, setTotalAmount] = useState('')
-  const [showPicker, setShowPicker] = useState(false)
+const CATEGORIES = [
+  { value: 'pension', label: '🏡 숙소' },
+  { value: 'food', label: '🍖 식비' },
+  { value: 'transport', label: '🚗 교통' },
+  { value: 'prep', label: '🎒 준비물' },
+  { value: 'other', label: '기타' },
+]
 
-  function handleAdd() {
-    if (!label.trim() || !totalAmount) return
-    onAdd(label.trim(), totalAmount)
-    setLabel(''); setTotalAmount(''); setShow(false); setShowPicker(false)
-  }
-
-  if (!show) return (
-    <button onClick={() => setShow(true)} style={{
-      width: '100%', padding: '9px 0', borderRadius: 10, border: '0.5px dashed #ccc',
-      background: '#fafafa', color: '#888', fontSize: 13, cursor: 'pointer', marginTop: 4,
-    }}>+ 항목 추가</button>
-  )
-
-  return (
-    <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginTop: 4 }}>
-      <div style={{ position: 'relative', marginBottom: 8 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input autoFocus value={label} onChange={(e) => setLabel(e.target.value)}
-            placeholder="항목 이름"
-            style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13 }} />
-          <button onClick={() => setShowPicker(!showPicker)} style={{
-            padding: '8px 10px', borderRadius: 8, border: '0.5px solid #85B7EB',
-            background: '#E6F1FB', color: '#0C447C', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
-          }}>준비물 선택</button>
-        </div>
-        {showPicker && packingItems.length > 0 && (
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
-            background: '#fff', border: '0.5px solid #e0e0e0', borderRadius: 10,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto', marginTop: 4,
-          }}>
-            {packingItems.map((item) => (
-              <div key={item.id} onClick={() => { setLabel(item.text); setShowPicker(false) }} style={{
-                padding: '9px 12px', fontSize: 13, cursor: 'pointer', borderBottom: '0.5px solid #f5f5f5', color: '#333',
-              }}>
-                {item.text}
-                <span style={{ fontSize: 11, color: '#aaa', marginLeft: 6 }}>
-                  {item.category === 'shared' ? '공동' : '개인'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <input type="number" value={totalAmount}
-          onChange={(e) => setTotalAmount(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          placeholder="총 금액 (원)"
-          style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13 }} />
-        <button onClick={handleAdd} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#185FA5', color: '#fff', fontSize: 13, cursor: 'pointer' }}>추가</button>
-        <button onClick={() => { setShow(false); setShowPicker(false) }} style={{ padding: '8px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: '#f5f5f5', color: '#888', fontSize: 13, cursor: 'pointer' }}>✕</button>
-      </div>
-      <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>총 금액 입력 → 인원수로 나눠 1인당 계산</div>
-    </div>
-  )
-}
-
-// 계좌 등록 / 복사 섹션
 function AccountSection({ meta, updateMeta, isTreasurer }) {
   const account = meta?.account
   const [editing, setEditing] = useState(false)
@@ -92,15 +36,11 @@ function AccountSection({ meta, updateMeta, isTreasurer }) {
       <div style={{ fontSize: 11, color: '#633806', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>
         💰 정산 계좌 {isTreasurer ? '(내 계좌)' : ''}
       </div>
-
       {editing || !account?.number ? (
         <>
-          <input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="은행명 (예: 카카오뱅크)"
-            style={inp} />
-          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="계좌번호"
-            style={{ ...inp, marginTop: 6 }} />
-          <input value={holder} onChange={(e) => setHolder(e.target.value)} placeholder="예금주"
-            style={{ ...inp, marginTop: 6, marginBottom: 8 }} />
+          <input value={bank} onChange={(e) => setBank(e.target.value)} placeholder="은행명 (예: 카카오뱅크)" style={inp} />
+          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="계좌번호" style={{ ...inp, marginTop: 6 }} />
+          <input value={holder} onChange={(e) => setHolder(e.target.value)} placeholder="예금주" style={{ ...inp, marginTop: 6, marginBottom: 8 }} />
           <div style={{ display: 'flex', gap: 6 }}>
             {account?.number && <button onClick={() => setEditing(false)} style={cancelBtn}>취소</button>}
             <button onClick={handleSave} style={saveBtn}>저장</button>
@@ -109,20 +49,13 @@ function AccountSection({ meta, updateMeta, isTreasurer }) {
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
-              {account.bank} {account.number}
-            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>{account.bank} {account.number}</div>
             <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>예금주: {account.holder}</div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={handleCopy} style={{
-              padding: '7px 14px', borderRadius: 8, border: 'none',
-              background: '#E07B00', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
-            }}>복사</button>
+            <button onClick={handleCopy} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#E07B00', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>복사</button>
             {isTreasurer && (
-              <button onClick={() => { setBank(account.bank); setNumber(account.number); setHolder(account.holder); setEditing(true) }} style={{
-                padding: '7px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: '#fff', fontSize: 12, color: '#888', cursor: 'pointer',
-              }}>수정</button>
+              <button onClick={() => { setBank(account.bank); setNumber(account.number); setHolder(account.holder); setEditing(true) }} style={{ padding: '7px 10px', borderRadius: 8, border: '0.5px solid #ddd', background: '#fff', fontSize: 12, color: '#888', cursor: 'pointer' }}>수정</button>
             )}
           </div>
         </div>
@@ -131,97 +64,168 @@ function AccountSection({ meta, updateMeta, isTreasurer }) {
   )
 }
 
-const NIGHTS_OPTIONS = [1, 2, 3, 4, 5]
+function AddExpenseForm({ members, memberIds, onAdd, onCancel }) {
+  const [label, setLabel] = useState('')
+  const [amount, setAmount] = useState('')
+  const [payerId, setPayerId] = useState(memberIds[0] || '')
+  const [allParticipants, setAllParticipants] = useState(true)
+  const [participantIds, setParticipantIds] = useState([...memberIds])
+  const [category, setCategory] = useState('other')
+
+  function toggleParticipant(id) {
+    setParticipantIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
+  function handleAdd() {
+    if (!label.trim() || !amount) return
+    const ids = allParticipants ? memberIds : participantIds
+    onAdd(label.trim(), Number(amount), payerId, ids, category)
+  }
+
+  return (
+    <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginTop: 4, marginBottom: 8 }}>
+      <input autoFocus placeholder="항목 이름" value={label} onChange={(e) => setLabel(e.target.value)}
+        style={{ ...inp, marginBottom: 8 }} />
+      <input type="number" placeholder="총 금액 (원)" value={amount} onChange={(e) => setAmount(e.target.value)}
+        style={{ ...inp, marginBottom: 8 }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>결제자</div>
+          <select value={payerId} onChange={(e) => setPayerId(e.target.value)} style={{ ...inp, appearance: 'auto' }}>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>카테고리</div>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inp, appearance: 'auto' }}>
+            {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#555', cursor: 'pointer', marginBottom: 6 }}>
+          <input type="checkbox" checked={allParticipants} onChange={(e) => setAllParticipants(e.target.checked)} />
+          전원 참여
+        </label>
+        {!allParticipants && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {members.map((m) => (
+              <button key={m.id} onClick={() => toggleParticipant(m.id)} style={{
+                padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                border: `0.5px solid ${participantIds.includes(m.id) ? '#185FA5' : '#e0e0e0'}`,
+                background: participantIds.includes(m.id) ? '#E6F1FB' : '#f5f5f5',
+                color: participantIds.includes(m.id) ? '#0C447C' : '#888',
+              }}>{m.name}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onCancel} style={cancelBtn}>취소</button>
+        <button onClick={handleAdd} style={saveBtn}>추가</button>
+      </div>
+    </div>
+  )
+}
 
 export default function CostPage({ me, tripId, tripMembers }) {
-  const headCount = tripMembers.length || 1
-  const [nights, setNights] = useState(2)
-  const [pensionTotal, setPensionTotal] = useState(300000)
-  const { items, loading, addItem, updateAmount, deleteItem, seedDefaults } = useCostItems(tripId)
-  const { sharedItems, personalItems } = usePackingItems(tripId)
+  const memberIds = tripMembers || []
+  const { items, loading, addExpense, deleteItem, seedExpenses } = useCostItems(tripId)
   const { meta, updateMeta } = useTripMeta(tripId)
+  const { friends } = useFriends()
+  const [showForm, setShowForm] = useState(false)
+  const [filterCat, setFilterCat] = useState('all')
 
-  const allPackingItems = [...sharedItems, ...personalItems]
-  const pensionPerPerson = Math.round((Number(pensionTotal) * nights) / headCount)
-  const itemsTotal = items.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0)
-  const total = pensionPerPerson + Math.round(itemsTotal / headCount)
   const isTreasurer = me?.role === '총무'
+  const memberMap = Object.fromEntries(friends.map((f) => [f.id, f]))
+  const members = memberIds.map((id) => memberMap[id]).filter(Boolean)
+
+  // Settlement calculation
+  const expensesForCalc = items
+    .filter((e) => !e.isDeleted)
+    .map((e) => ({
+      ...e,
+      shares: splitEvenly(e.totalAmount, e.participantIds?.length ? e.participantIds : memberIds),
+    }))
+  const transfers = calculateSettlement(expensesForCalc, memberIds)
+
+  const totalSpent = items.reduce((s, e) => s + (e.totalAmount || 0), 0)
+  const avgPerPerson = memberIds.length > 0 ? Math.round(totalSpent / memberIds.length) : 0
+
+  const account = meta?.account
+
+  function copySettlement() {
+    const transferLines = transfers.length > 0
+      ? transfers.map((t) => `• ${memberMap[t.from]?.name ?? t.from} → ${memberMap[t.to]?.name ?? t.to}: ${t.amount.toLocaleString()}원`).join('\n')
+      : '• 모두 동등하게 냈어요!'
+    const accountLine = account?.number
+      ? `\n총무 계좌: ${account.bank} ${account.number} (${account.holder})`
+      : ''
+    const text = `[여행 정산]\n총 지출: ${totalSpent.toLocaleString()}원\n1인 평균: ${avgPerPerson.toLocaleString()}원\n\n송금 목록:\n${transferLines}${accountLine}`
+    navigator.clipboard.writeText(text).then(() => alert('복사됨!\n\n' + text))
+  }
+
+  const filteredItems = filterCat === 'all' ? items : items.filter((e) => e.category === filterCat)
 
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: '#aaa' }}>불러오는 중...</div>
 
   return (
     <div style={{ padding: '12px 16px 32px' }}>
-      {/* 계좌 섹션 */}
       <AccountSection meta={meta} updateMeta={updateMeta} isTreasurer={isTreasurer} />
 
-      {/* 참가자 수 */}
       <div style={{ background: '#f9f9f9', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#555' }}>
-        👥 참가자: <strong>{headCount}명</strong>
-        {tripMembers.length === 0 && <span style={{ color: '#f09595', marginLeft: 6 }}>(참가자를 먼저 설정해주세요)</span>}
+        👥 참가자: <strong>{memberIds.length}명</strong>
+        {memberIds.length === 0 && <span style={{ color: '#f09595', marginLeft: 6 }}>(참가자를 먼저 설정해주세요)</span>}
       </div>
 
-      {/* 박수 선택 — 넓은 버튼 */}
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ fontSize: 11, color: '#aaa', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>몇 박?</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
-          {NIGHTS_OPTIONS.map((n) => (
-            <button key={n} onClick={() => setNights(n)} style={{
-              padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 500,
-              border: '0.5px solid', borderColor: nights === n ? '#185FA5' : '#e0e0e0',
-              background: nights === n ? '#E6F1FB' : '#f5f5f5',
-              color: nights === n ? '#0C447C' : '#888', cursor: 'pointer',
-              lineHeight: 1.3,
-            }}>
-              <div>{n}박</div>
-              <div style={{ fontSize: 10 }}>{n + 1}일</div>
-            </button>
-          ))}
-        </div>
+      {/* 카테고리 필터 */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 12, paddingBottom: 2 }}>
+        <button onClick={() => setFilterCat('all')} style={filterChip(filterCat === 'all')}>전체</button>
+        {CATEGORIES.map((c) => (
+          <button key={c.value} onClick={() => setFilterCat(c.value)} style={filterChip(filterCat === c.value)}>{c.label}</button>
+        ))}
       </div>
 
-      {/* 펜션 총액 */}
-      <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginBottom: 12, marginTop: 14 }}>
-        <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>🏡 펜션 {nights}박 총 금액 (원)</div>
-        <input
-          type="number"
-          value={pensionTotal}
-          onChange={(e) => setPensionTotal(e.target.value)}
-          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 14, boxSizing: 'border-box' }}
-        />
-        <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
-          1인당 → {pensionPerPerson.toLocaleString()}원
-        </div>
-      </div>
-
-      {/* 기본 항목 불러오기 */}
+      {/* 지출 목록 */}
       {items.length === 0 && (
-        <button onClick={() => seedDefaults(headCount)} style={{
+        <button onClick={() => seedExpenses(memberIds.length, memberIds)} style={{
           width: '100%', padding: '10px 0', borderRadius: 10, marginBottom: 12,
           border: '0.5px solid #85B7EB', background: '#E6F1FB', color: '#0C447C',
           fontSize: 13, fontWeight: 500, cursor: 'pointer',
         }}>📋 기본 정산 항목 불러오기</button>
       )}
 
-      {/* 항목 목록 */}
-      {items.map((item) => {
-        const perPerson = Math.round((Number(item.totalAmount) || 0) / headCount)
+      {filteredItems.map((item) => {
+        const payer = memberMap[item.payerId]
+        const participants = (item.participantIds || memberIds)
+        const perPerson = participants.length > 0 ? Math.round((item.totalAmount || 0) / participants.length) : 0
+        const catInfo = CATEGORIES.find((c) => c.value === item.category)
         return (
           <div key={item.id} style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 12px', borderRadius: 10, marginBottom: 6,
             background: '#f9f9f9', border: '0.5px solid #eee',
           }}>
-            <span style={{ flex: 1, fontSize: 14, color: '#444' }}>{item.label}</span>
-            <input
-              type="number"
-              value={item.totalAmount ?? ''}
-              onChange={(e) => updateAmount(item.id, e.target.value)}
-              style={{ width: 100, padding: '5px 8px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13, textAlign: 'right' }}
-            />
-            <span style={{ fontSize: 11, color: '#aaa', flexShrink: 0 }}>원</span>
-            <span style={{ fontSize: 11, color: '#888', flexShrink: 0, background: '#eee', padding: '2px 7px', borderRadius: 8 }}>
-              1인 {perPerson.toLocaleString()}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, color: '#333', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {catInfo && <span style={{ fontSize: 12 }}>{catInfo.label.split(' ')[0]}</span>}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                {item.category === 'prep' && item.linkedPackingItemId && (
+                  <span style={{ fontSize: 11, color: '#633806' }}>🎒</span>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>1인 {perPerson.toLocaleString()}원</div>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#333', flexShrink: 0 }}>
+              {(item.totalAmount || 0).toLocaleString()}원
             </span>
+            {payer && (
+              <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: payer.bg || '#eee', color: payer.tc || '#333', flexShrink: 0 }}>
+                {payer.name}
+              </span>
+            )}
             <button onClick={() => deleteItem(item.id)} style={{
               fontSize: 11, padding: '3px 6px', borderRadius: 8, border: '0.5px solid #f09595',
               background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer', flexShrink: 0,
@@ -230,29 +234,64 @@ export default function CostPage({ me, tripId, tripMembers }) {
         )
       })}
 
-      <AddItemRow onAdd={addItem} packingItems={allPackingItems} />
-
-      {/* 합계 */}
-      <div style={{ marginTop: 20, background: '#E6F1FB', borderRadius: 14, padding: '16px 18px' }}>
-        <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>
-          {headCount}명 · {nights}박 {nights + 1}일 · 1인당 예상
-        </div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: '#0C447C' }}>
-          {total.toLocaleString()}원
-        </div>
-        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-          총 {(total * headCount).toLocaleString()}원 ({headCount}인 합산)
-        </div>
-      </div>
-
-      {/* 총무 계좌 미등록 안내 */}
-      {isTreasurer && !meta?.account?.number && (
-        <div style={{ marginTop: 12, fontSize: 12, color: '#E07B00', textAlign: 'center' }}>
-          위에서 계좌를 등록하면 팀원들이 바로 복사할 수 있어요 💳
-        </div>
+      {showForm ? (
+        <AddExpenseForm
+          members={members}
+          memberIds={memberIds}
+          onAdd={(label, amount, payerId, participantIds, category) => {
+            addExpense(label, amount, payerId, participantIds, category)
+            setShowForm(false)
+          }}
+          onCancel={() => setShowForm(false)}
+        />
+      ) : (
+        <button onClick={() => setShowForm(true)} style={{
+          width: '100%', padding: '9px 0', borderRadius: 10, border: '0.5px dashed #ccc',
+          background: '#fafafa', color: '#888', fontSize: 13, cursor: 'pointer', marginBottom: 16,
+        }}>+ 지출 추가</button>
       )}
-      <div style={{ marginTop: 10, fontSize: 12, color: '#bbb', lineHeight: 1.7, textAlign: 'center' }}>
-        실제 금액 입력 후 총무가 정산 확정해줘 💰
+
+      {/* 정산 요약 */}
+      <div style={{ background: '#E6F1FB', borderRadius: 14, padding: '14px 16px', marginTop: 8 }}>
+        <div style={{ fontSize: 11, color: '#0C447C', fontWeight: 500, marginBottom: 8, letterSpacing: 0.4 }}>정산 요약</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#888' }}>총 지출</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0C447C' }}>{totalSpent.toLocaleString()}원</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 12, color: '#888' }}>1인 평균</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0C447C' }}>{avgPerPerson.toLocaleString()}원</div>
+          </div>
+        </div>
+
+        {transfers.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#1D9E75', fontSize: 13, fontWeight: 500, padding: '8px 0' }}>
+            🎉 모두 동등하게 냈어요!
+          </div>
+        ) : (
+          <div>
+            {transfers.map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', borderTop: i === 0 ? 'none' : '0.5px solid #d0e4f7' }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: '#333' }}>
+                  {memberMap[t.from]?.name ?? t.from}
+                </span>
+                <span style={{ fontSize: 12, color: '#888' }}>→</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: '#333' }}>
+                  {memberMap[t.to]?.name ?? t.to}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#A32D2D', marginLeft: 'auto' }}>
+                  {t.amount.toLocaleString()}원
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={copySettlement} style={{
+          width: '100%', marginTop: 12, padding: '10px 0', borderRadius: 10,
+          border: 'none', background: '#185FA5', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+        }}>📋 카톡 정산문 복사</button>
       </div>
     </div>
   )
@@ -261,3 +300,10 @@ export default function CostPage({ me, tripId, tripMembers }) {
 const inp = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '0.5px solid #ddd', fontSize: 13, boxSizing: 'border-box' }
 const cancelBtn = { flex: 1, padding: '8px 0', borderRadius: 8, border: '0.5px solid #ddd', background: '#fff', color: '#888', fontSize: 13, cursor: 'pointer' }
 const saveBtn = { flex: 2, padding: '8px 0', borderRadius: 8, border: 'none', background: '#E07B00', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }
+const filterChip = (active) => ({
+  padding: '5px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+  border: `0.5px solid ${active ? '#85B7EB' : '#e0e0e0'}`,
+  background: active ? '#E6F1FB' : '#f5f5f5',
+  color: active ? '#0C447C' : '#888',
+  fontWeight: active ? 500 : 400,
+})

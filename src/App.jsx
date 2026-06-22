@@ -8,6 +8,7 @@ import FriendsPage from './pages/FriendsPage'
 import VotePage from './pages/VotePage'
 import PrepPage from './pages/PrepPage'
 import CostPage from './pages/CostPage'
+import DashboardPage from './pages/DashboardPage'
 import { useConfirmedDate } from './hooks/useFirebase'
 import { useTripMeta, useTripMembers, useTripDateOptions } from './hooks/useTrips'
 import { useFriends } from './hooks/useFriends'
@@ -24,7 +25,7 @@ const DEFAULT_FRIENDS = [
 ]
 
 function TripApp({ tripId, me, onExit }) {
-  const [step, setStep] = useState('vote')
+  const [step, setStep] = useState('home')
   const { confirmedDate } = useConfirmedDate(tripId)
   const { meta } = useTripMeta(tripId)
   const { memberIds } = useTripMembers(tripId)
@@ -47,6 +48,7 @@ function TripApp({ tripId, me, onExit }) {
       <StepBar current={step} confirmed={!!confirmedDate} onChange={setStep} />
 
       <div style={styles.pageContent}>
+        {step === 'home' && <DashboardPage me={me} tripId={tripId} tripMembers={memberIds} onNavigate={setStep} />}
         {step === 'vote' && <VotePage me={me} tripId={tripId} tripMembers={memberIds} />}
         {step === 'prep' && <PrepPage me={me} tripId={tripId} onNext={() => setStep('cost')} />}
         {step === 'cost' && <CostPage me={me} tripId={tripId} tripMembers={memberIds} />}

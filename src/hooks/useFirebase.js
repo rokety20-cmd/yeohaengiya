@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ref, onValue, set, push, remove } from 'firebase/database'
+import { ref, onValue, set, push, remove, update } from 'firebase/database'
 import { db } from '../firebase'
 
 const base = (tripId, path) => ref(db, `trips/${tripId}/${path}`)
@@ -94,4 +94,48 @@ export function usePersonalChecks(tripId, memberId) {
   }, [tripId, memberId])
 
   return { personalDone: data || {}, togglePersonal: toggle }
+}
+
+// 날짜 선호도 (prefer | ok | no | null)
+export function usePreferences(tripId) {
+  const { data, loading } = useFirebaseValue(tripId, 'preferences')
+
+  const castPreference = useCallback((memberId, dateOptionId, choice) => {
+    if (!tripId) return
+    const r = ref(db, `trips/${tripId}/preferences/${dateOptionId}/${memberId}`)
+    set(r, choice ?? null)
+  }, [tripId])
+
+  return { preferences: data || {}, loading, castPreference }
+}
+
+// 펜션 좋아요
+export function usePensionLikes(tripId) {
+  const { data, loading } = useFirebaseValue(tripId, 'pensionLikes')
+
+  const toggleLike = useCallback((pensionId, memberId) => {
+    if (!tripId) return
+    const current = data?.[pensionId]?.[memberId]
+    const r = ref(db, `trips/${tripId}/pensionLikes/${pensionId}/${memberId}`)
+    set(r, current ? null : true)
+  }, [tripId, data])
+
+  return { pensionLikes: data || {}, loading, toggleLike }
+}
+
+// 확정 펜션
+export function useConfirmedPension(tripId) {
+  const { data } = useFirebaseValue(tripId, 'meta/confirmedPension')
+
+  const confirmPension = useCallback((id) => {
+    if (!tripId) return
+    set(ref(db, `trips/${tripId}/meta/confirmedPension`), id)
+  }, [tripId])
+
+  const unconfirmPension = useCallback(() => {
+    if (!tripId) return
+    set(ref(db, `trips/${tripId}/meta/confirmedPension`), null)
+  }, [tripId])
+
+  return { confirmedPension: data, confirmPension, unconfirmPension }
 }

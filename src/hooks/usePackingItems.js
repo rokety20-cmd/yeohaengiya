@@ -70,8 +70,35 @@ export function usePackingItems(tripId) {
     })
   }, [tripId])
 
+  // 구매 완료 표시
+  const markBought = useCallback((itemId, amount, payerId) => {
+    if (!tripId) return
+    update(itemRef(tripId, itemId), {
+      purchaseStatus: 'bought',
+      purchaseAmount: Math.round(Number(amount) || 0),
+      purchasedBy: payerId,
+      done: true,
+    })
+  }, [tripId])
+
+  // 구매 완료 취소
+  const unmarkBought = useCallback((itemId) => {
+    if (!tripId) return
+    update(itemRef(tripId, itemId), {
+      purchaseStatus: 'pending',
+      purchaseAmount: null,
+      purchasedBy: null,
+    })
+  }, [tripId])
+
+  // 비용 항목으로 추가됨 표시
+  const markAddedToExpense = useCallback((itemId) => {
+    if (!tripId) return
+    update(itemRef(tripId, itemId), { addedToExpense: true })
+  }, [tripId])
+
   const sharedItems = items.filter((i) => i.category === 'shared')
   const personalItems = items.filter((i) => i.category === 'personal')
 
-  return { items, sharedItems, personalItems, loading, addItem, toggleDone, assignTo, deleteItem, seedDefaults }
+  return { items, sharedItems, personalItems, loading, addItem, toggleDone, assignTo, deleteItem, seedDefaults, markBought, unmarkBought, markAddedToExpense }
 }
