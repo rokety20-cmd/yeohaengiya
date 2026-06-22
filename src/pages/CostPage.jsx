@@ -4,6 +4,42 @@ import { useTripMeta } from '../hooks/useTrips'
 import { useFriends } from '../hooks/useFriends'
 import { splitEvenly, calculateSettlement } from '../utils/settlement'
 
+// 금액 → "30만원" / "12만 5,000원" / "8,000원" 형태로 변환
+function fmtAmt(n) {
+  const v = Math.round(Number(n) || 0)
+  if (v === 0) return '0원'
+  const man = Math.floor(v / 10000)
+  const rest = v % 10000
+  if (man > 0 && rest === 0) return `${man.toLocaleString()}만원`
+  if (man > 0) return `${man.toLocaleString()}만 ${rest.toLocaleString()}원`
+  return `${rest.toLocaleString()}원`
+}
+
+// 숫자 입력 + 실시간 만원 미리보기
+function AmountInput({ value, onChange, placeholder }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder ?? '총 금액 (원)'}
+          style={{ ...inp, paddingRight: 80 }}
+        />
+        {Number(value) > 0 && (
+          <span style={{
+            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+            fontSize: 12, color: '#185FA5', fontWeight: 500, pointerEvents: 'none',
+          }}>
+            {fmtAmt(value)}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const CATEGORIES = [
   { value: 'pension', label: '🏡 숙소' },
   { value: 'food', label: '🍖 식비' },
@@ -88,8 +124,7 @@ function AddExpenseForm({ members, memberIds, onAdd, onCancel }) {
     <div style={{ background: '#f9f9f9', borderRadius: 12, padding: '12px 14px', marginTop: 4, marginBottom: 8 }}>
       <input autoFocus placeholder="항목 이름" value={label} onChange={(e) => setLabel(e.target.value)}
         style={{ ...inp, marginBottom: 8 }} />
-      <input type="number" placeholder="총 금액 (원)" value={amount} onChange={(e) => setAmount(e.target.value)}
-        style={{ ...inp, marginBottom: 8 }} />
+      <AmountInput value={amount} onChange={setAmount} />
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>결제자</div>
@@ -158,7 +193,7 @@ function EditExpenseRow({ item, members, memberIds, onSave, onCancel }) {
     <div style={{ background: '#FFFBE6', border: '1px solid #E0C97A', borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
       <div style={{ fontSize: 11, color: '#856404', fontWeight: 500, marginBottom: 8 }}>✏️ 항목 수정</div>
       <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="항목 이름" style={{ ...inp, marginBottom: 8 }} />
-      <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="총 금액 (원)" style={{ ...inp, marginBottom: 8 }} />
+      <AmountInput value={amount} onChange={setAmount} />
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>결제자</div>
@@ -302,7 +337,7 @@ export default function CostPage({ me, tripId, tripMembers }) {
                 )}
               </div>
               <span style={{ fontSize: 14, fontWeight: 600, color: '#333', flexShrink: 0 }}>
-                {(item.totalAmount || 0).toLocaleString()}원
+                {fmtAmt(item.totalAmount)}
               </span>
             </div>
             {/* 2행: 결제자·분담자·1인 + 버튼 */}
@@ -313,7 +348,7 @@ export default function CostPage({ me, tripId, tripMembers }) {
                 </span>
               )}
               <span style={{ fontSize: 11, color: '#aaa' }}>
-                {participants.length}명 분담 · 1인 {perPerson.toLocaleString()}원
+                {participants.length}명 분담 · 1인 {fmtAmt(perPerson)}
               </span>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                 <button onClick={() => { setEditingId(item.id); setShowForm(false) }} style={{
@@ -353,11 +388,13 @@ export default function CostPage({ me, tripId, tripMembers }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
           <div>
             <div style={{ fontSize: 12, color: '#888' }}>총 지출</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#0C447C' }}>{totalSpent.toLocaleString()}원</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0C447C' }}>{fmtAmt(totalSpent)}</div>
+            <div style={{ fontSize: 11, color: '#6FA3D9', marginTop: 1 }}>{totalSpent.toLocaleString()}원</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 12, color: '#888' }}>1인 평균</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#0C447C' }}>{avgPerPerson.toLocaleString()}원</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0C447C' }}>{fmtAmt(avgPerPerson)}</div>
+            <div style={{ fontSize: 11, color: '#6FA3D9', marginTop: 1 }}>{avgPerPerson.toLocaleString()}원</div>
           </div>
         </div>
 
@@ -377,7 +414,8 @@ export default function CostPage({ me, tripId, tripMembers }) {
                   {memberMap[t.to]?.name ?? t.to}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#A32D2D', marginLeft: 'auto' }}>
-                  {t.amount.toLocaleString()}원
+                  {fmtAmt(t.amount)}
+                  <span style={{ fontSize: 11, fontWeight: 400, color: '#c0676e', marginLeft: 4 }}>({t.amount.toLocaleString()}원)</span>
                 </span>
               </div>
             ))}
