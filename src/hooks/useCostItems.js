@@ -47,6 +47,13 @@ export function useCostItems(tripId) {
     update(itemRef(tripId, itemId), { totalAmount: Math.round(Number(totalAmount) || 0) })
   }, [tripId])
 
+  const updateExpense = useCallback((itemId, fields) => {
+    if (!tripId) return
+    const patch = { ...fields }
+    if (patch.totalAmount !== undefined) patch.totalAmount = Math.round(Number(patch.totalAmount) || 0)
+    update(itemRef(tripId, itemId), patch)
+  }, [tripId])
+
   const deleteItem = useCallback((itemId) => {
     if (!tripId) return
     remove(itemRef(tripId, itemId))
@@ -69,7 +76,7 @@ export function useCostItems(tripId) {
     })
   }, [tripId])
 
-  return { items, loading, addExpense, updateAmount, deleteItem, seedExpenses }
+  return { items, loading, addExpense, updateAmount, updateExpense, deleteItem, seedExpenses }
 }
 
 // alias

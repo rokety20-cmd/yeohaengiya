@@ -130,13 +130,83 @@ function AddExpenseForm({ members, memberIds, onAdd, onCancel }) {
   )
 }
 
+// 인라인 편집 폼 — 기존 항목 수정
+function EditExpenseRow({ item, members, memberIds, onSave, onCancel }) {
+  const [label, setLabel] = useState(item.label)
+  const [amount, setAmount] = useState(item.totalAmount ?? '')
+  const [payerId, setPayerId] = useState(item.payerId || memberIds[0] || '')
+  const [allPart, setAllPart] = useState(!item.participantIds?.length || item.participantIds.length === memberIds.length)
+  const [partIds, setPartIds] = useState(item.participantIds?.length ? item.participantIds : [...memberIds])
+  const [category, setCategory] = useState(item.category || 'other')
+
+  function toggle(id) {
+    setPartIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+
+  function handleSave() {
+    if (!label.trim() || !amount) return
+    onSave({
+      label: label.trim(),
+      totalAmount: Number(amount),
+      payerId,
+      participantIds: allPart ? memberIds : partIds,
+      category,
+    })
+  }
+
+  return (
+    <div style={{ background: '#FFFBE6', border: '1px solid #E0C97A', borderRadius: 12, padding: '12px 14px', marginBottom: 8 }}>
+      <div style={{ fontSize: 11, color: '#856404', fontWeight: 500, marginBottom: 8 }}>✏️ 항목 수정</div>
+      <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="항목 이름" style={{ ...inp, marginBottom: 8 }} />
+      <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="총 금액 (원)" style={{ ...inp, marginBottom: 8 }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>결제자</div>
+          <select value={payerId} onChange={(e) => setPayerId(e.target.value)} style={{ ...inp, appearance: 'auto' }}>
+            {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>카테고리</div>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inp, appearance: 'auto' }}>
+            {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#555', cursor: 'pointer', marginBottom: 6 }}>
+          <input type="checkbox" checked={allPart} onChange={(e) => setAllPart(e.target.checked)} />
+          전원 참여
+        </label>
+        {!allPart && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {members.map((m) => (
+              <button key={m.id} onClick={() => toggle(m.id)} style={{
+                padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                border: `0.5px solid ${partIds.includes(m.id) ? '#185FA5' : '#e0e0e0'}`,
+                background: partIds.includes(m.id) ? '#E6F1FB' : '#f5f5f5',
+                color: partIds.includes(m.id) ? '#0C447C' : '#888',
+              }}>{m.name}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onCancel} style={cancelBtn}>취소</button>
+        <button onClick={handleSave} style={{ ...saveBtn, background: '#856404' }}>저장</button>
+      </div>
+    </div>
+  )
+}
+
 export default function CostPage({ me, tripId, tripMembers }) {
   const memberIds = tripMembers || []
-  const { items, loading, addExpense, deleteItem, seedExpenses } = useCostItems(tripId)
+  const { items, loading, addExpense, updateExpense, deleteItem, seedExpenses } = useCostItems(tripId)
   const { meta, updateMeta } = useTripMeta(tripId)
   const { friends } = useFriends()
   const [showForm, setShowForm] = useState(false)
   const [filterCat, setFilterCat] = useState('all')
+  const [editingId, setEditingId] = useState(null)
 
   const isTreasurer = me?.role === '총무'
   const memberMap = Object.fromEntries(friends.map((f) => [f.id, f]))
@@ -199,37 +269,63 @@ export default function CostPage({ me, tripId, tripMembers }) {
 
       {filteredItems.map((item) => {
         const payer = memberMap[item.payerId]
-        const participants = (item.participantIds || memberIds)
+        const participants = (item.participantIds?.length ? item.participantIds : memberIds)
         const perPerson = participants.length > 0 ? Math.round((item.totalAmount || 0) / participants.length) : 0
         const catInfo = CATEGORIES.find((c) => c.value === item.category)
+        const isEditing = editingId === item.id
+
+        if (isEditing) {
+          return (
+            <EditExpenseRow
+              key={item.id}
+              item={item}
+              members={members}
+              memberIds={memberIds}
+              onSave={(fields) => { updateExpense(item.id, fields); setEditingId(null) }}
+              onCancel={() => setEditingId(null)}
+            />
+          )
+        }
+
         return (
           <div key={item.id} style={{
-            display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 12px', borderRadius: 10, marginBottom: 6,
             background: '#f9f9f9', border: '0.5px solid #eee',
           }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, color: '#333', display: 'flex', alignItems: 'center', gap: 4 }}>
+            {/* 1행: 이름 + 금액 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                 {catInfo && <span style={{ fontSize: 12 }}>{catInfo.label.split(' ')[0]}</span>}
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                <span style={{ fontSize: 14, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
                 {item.category === 'prep' && item.linkedPackingItemId && (
                   <span style={{ fontSize: 11, color: '#633806' }}>🎒</span>
                 )}
               </div>
-              <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>1인 {perPerson.toLocaleString()}원</div>
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 500, color: '#333', flexShrink: 0 }}>
-              {(item.totalAmount || 0).toLocaleString()}원
-            </span>
-            {payer && (
-              <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: payer.bg || '#eee', color: payer.tc || '#333', flexShrink: 0 }}>
-                {payer.name}
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#333', flexShrink: 0 }}>
+                {(item.totalAmount || 0).toLocaleString()}원
               </span>
-            )}
-            <button onClick={() => deleteItem(item.id)} style={{
-              fontSize: 11, padding: '3px 6px', borderRadius: 8, border: '0.5px solid #f09595',
-              background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer', flexShrink: 0,
-            }}>✕</button>
+            </div>
+            {/* 2행: 결제자·분담자·1인 + 버튼 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              {payer && (
+                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: payer.bg || '#eee', color: payer.tc || '#333' }}>
+                  결제 {payer.name}
+                </span>
+              )}
+              <span style={{ fontSize: 11, color: '#aaa' }}>
+                {participants.length}명 분담 · 1인 {perPerson.toLocaleString()}원
+              </span>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+                <button onClick={() => { setEditingId(item.id); setShowForm(false) }} style={{
+                  fontSize: 11, padding: '3px 8px', borderRadius: 8, border: '0.5px solid #d0b800',
+                  background: '#FFFBE6', color: '#856404', cursor: 'pointer',
+                }}>✏️ 수정</button>
+                <button onClick={() => deleteItem(item.id)} style={{
+                  fontSize: 11, padding: '3px 6px', borderRadius: 8, border: '0.5px solid #f09595',
+                  background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer',
+                }}>✕</button>
+              </div>
+            </div>
           </div>
         )
       })}
