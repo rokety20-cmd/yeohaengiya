@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useVehicles } from '../hooks/useVehicles'
 import { useFriends } from '../hooks/useFriends'
+import MapView from '../components/MapView'
 
 function fmtAmt(n) {
   const v = Math.round(Number(n) || 0)
@@ -287,15 +288,21 @@ function VehicleCard({ vehicle: v, memberMap, onEdit, onDelete }) {
             </div>
           )}
 
-          {/* 외부 링크 */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-            {routeParts.length > 0 && (
-              <button onClick={openMap} style={extBtn}>🗺️ 카카오맵 경로</button>
-            )}
-            {(v.departure || v.destination) && (
-              <button onClick={openMart} style={extBtn}>🛒 마트 검색</button>
-            )}
-          </div>
+          {/* 카카오 지도 */}
+          {(v.departure || v.destination) && (
+            <div style={{ marginBottom: 10 }}>
+              <MapView
+                departure={v.departure}
+                waypoints={v.waypoints || []}
+                destination={v.destination}
+              />
+            </div>
+          )}
+
+          {/* 카카오맵 앱 열기 */}
+          {routeParts.length > 0 && (
+            <button onClick={openMap} style={{ ...extBtn, width: '100%', marginBottom: 8 }}>🗺️ 카카오맵에서 경로 보기</button>
+          )}
 
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={onEdit} style={{ ...cancelBtn, fontSize: 12 }}>✏️ 수정</button>
