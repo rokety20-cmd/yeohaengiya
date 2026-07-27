@@ -1,8 +1,9 @@
 const STEPS = [
-  { id: 'home', label: '홈',      icon: '🏠' },
-  { id: 'vote', label: '날짜 투표', icon: '📅' },
-  { id: 'prep', label: '준비물',   icon: '🎒' },
-  { id: 'cost', label: '정산',     icon: '💸' },
+  { id: 'home', label: '홈',   icon: '🏠' },
+  { id: 'vote', label: '투표', icon: '📅' },
+  { id: 'car',  label: '차량', icon: '🚗' },
+  { id: 'prep', label: '준비', icon: '🎒' },
+  { id: 'cost', label: '정산', icon: '💸' },
 ]
 
 export default function StepBar({ current, onChange }) {

@@ -8,6 +8,7 @@ import FriendsPage from './pages/FriendsPage'
 import VotePage from './pages/VotePage'
 import PrepPage from './pages/PrepPage'
 import CostPage from './pages/CostPage'
+import VehiclePage from './pages/VehiclePage'
 import DashboardPage from './pages/DashboardPage'
 import { useConfirmedDate } from './hooks/useFirebase'
 import { useTripMeta, useTripMembers, useTripDateOptions } from './hooks/useTrips'
@@ -50,6 +51,7 @@ function TripApp({ tripId, me, onExit }) {
       <div style={styles.pageContent}>
         {step === 'home' && <DashboardPage me={me} tripId={tripId} tripMembers={memberIds} onNavigate={setStep} />}
         {step === 'vote' && <VotePage me={me} tripId={tripId} tripMembers={memberIds} />}
+        {step === 'car'  && <VehiclePage tripId={tripId} tripMembers={memberIds} />}
         {step === 'prep' && <PrepPage me={me} tripId={tripId} onNext={() => setStep('cost')} />}
         {step === 'cost' && <CostPage me={me} tripId={tripId} tripMembers={memberIds} />}
       </div>
