@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useVehicles } from '../hooks/useVehicles'
 import { useFriends } from '../hooks/useFriends'
 import MapView from '../components/MapView'
@@ -39,6 +39,22 @@ const DEFAULTS = {
 function VehicleForm({ initial, members, onSave, onCancel }) {
   const [d, setD] = useState({ ...DEFAULTS, ...initial, passengerIds: initial?.passengerIds ?? [] })
   const [wpInput, setWpInput] = useState('')
+  const [gasFetching, setGasFetching] = useState(false)
+  const [gasInfo, setGasInfo] = useState(null) // { price, date, fallback }
+
+  const fetchGasPrice = useCallback(async () => {
+    setGasFetching(true)
+    try {
+      const res = await fetch('/.netlify/functions/gas-price')
+      const data = await res.json()
+      set('gasPrice', data.gasoline.price)
+      setGasInfo({ price: data.gasoline.price, date: data.gasoline.date, fallback: data.fallback })
+    } catch {
+      setGasInfo({ error: true })
+    } finally {
+      setGasFetching(false)
+    }
+  }, [])
 
   function set(k, v) { setD(p => ({ ...p, [k]: v })) }
   function togglePax(id) {
@@ -161,15 +177,41 @@ function VehicleForm({ initial, members, onSave, onCancel }) {
           ))}
         </div>
         {d.costMethod === 'fuel' ? (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <div style={lbl}>연비 (km/L)</div>
-              <input type="number" value={d.fuelEfficiency} onChange={e => set('fuelEfficiency', e.target.value)} style={inp} />
+          <div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={lbl}>연비 (km/L)</div>
+                <input type="number" value={d.fuelEfficiency} onChange={e => set('fuelEfficiency', e.target.value)} style={inp} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={lbl}>유가 (원/L)</div>
+                <input type="number" value={d.gasPrice} onChange={e => { set('gasPrice', e.target.value); setGasInfo(null) }} style={inp} />
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={lbl}>유가 (원/L)</div>
-              <input type="number" value={d.gasPrice} onChange={e => set('gasPrice', e.target.value)} style={inp} />
-            </div>
+            {/* 유가 자동 조회 버튼 */}
+            <button
+              onClick={fetchGasPrice}
+              disabled={gasFetching}
+              style={{
+                width: '100%', padding: '7px 0', borderRadius: 8, border: 'none',
+                background: gasFetching ? '#d0e4f7' : '#185FA5',
+                color: '#fff', fontSize: 12, fontWeight: 500, cursor: gasFetching ? 'default' : 'pointer',
+              }}
+            >
+              {gasFetching ? '조회 중...' : '📡 오늘 전국 평균 유가 자동 입력'}
+            </button>
+            {gasInfo && !gasInfo.error && (
+              <div style={{ marginTop: 5, fontSize: 11, color: gasInfo.fallback ? '#888' : '#1D9E75', textAlign: 'center' }}>
+                {gasInfo.fallback
+                  ? `⚠️ 오피넷 조회 실패 — 최근 평균값 ${gasInfo.price.toLocaleString()}원 사용`
+                  : `✅ ${gasInfo.date} 오피넷 전국평균 휘발유 ${gasInfo.price.toLocaleString()}원/L`}
+              </div>
+            )}
+            {gasInfo?.error && (
+              <div style={{ marginTop: 5, fontSize: 11, color: '#A32D2D', textAlign: 'center' }}>
+                조회 실패 — 수동으로 입력해주세요
+              </div>
+            )}
           </div>
         ) : (
           <div>
