@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useVehicles } from '../hooks/useVehicles'
 import { useFriends } from '../hooks/useFriends'
 import MapView from '../components/MapView'
+import AddressInput from '../components/AddressInput'
 
 function fmtAmt(n) {
   const v = Math.round(Number(n) || 0)
@@ -131,25 +132,45 @@ function VehicleForm({ initial, members, onSave, onCancel }) {
       {/* 경로 */}
       <div style={{ marginBottom: 10 }}>
         <div style={lbl}>출발지</div>
-        <input value={d.departure} onChange={e => set('departure', e.target.value)} placeholder="예: 서울 강남구" style={{ ...inp, marginBottom: 6 }} />
+        <div style={{ marginBottom: 6 }}>
+          <AddressInput
+            value={d.departure}
+            onChange={v => set('departure', v)}
+            placeholder="예: 서울 강남구, 호수로 336"
+          />
+        </div>
 
         {(d.waypoints || []).map((wp, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <span style={{ fontSize: 11, color: '#aaa', minWidth: 32 }}>경유{i + 1}</span>
-            <div style={{ flex: 1, padding: '7px 10px', borderRadius: 8, background: '#e8e8e8', fontSize: 13, color: '#555' }}>{wp}</div>
-            <button onClick={() => removeWp(i)} style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6, border: 'none', background: '#f0c5c5', color: '#A32D2D', cursor: 'pointer' }}>✕</button>
+            <div style={{ flex: 1 }}>
+              <AddressInput
+                value={wp}
+                onChange={v => setD(p => ({ ...p, waypoints: p.waypoints.map((w, j) => j === i ? v : w) }))}
+                placeholder="경유지 주소"
+              />
+            </div>
+            <button onClick={() => removeWp(i)} style={{ fontSize: 11, padding: '8px 10px', borderRadius: 6, border: 'none', background: '#f0c5c5', color: '#A32D2D', cursor: 'pointer', flexShrink: 0 }}>✕</button>
           </div>
         ))}
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-          <input value={wpInput} onChange={e => setWpInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addWp()}
-            placeholder="경유지 추가 (Enter)" style={{ ...inp, flex: 1 }} />
-          <button onClick={addWp} style={{ padding: '7px 12px', borderRadius: 8, border: '0.5px solid #ccc', background: '#fff', fontSize: 12, cursor: 'pointer' }}>+ 추가</button>
+          <div style={{ flex: 1 }}>
+            <AddressInput
+              value={wpInput}
+              onChange={setWpInput}
+              placeholder="경유지 추가"
+            />
+          </div>
+          <button onClick={addWp} style={{ padding: '8px 12px', borderRadius: 8, border: '0.5px solid #ccc', background: '#fff', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>+ 추가</button>
         </div>
 
         <div style={lbl}>목적지</div>
-        <input value={d.destination} onChange={e => set('destination', e.target.value)} placeholder="예: 강원도 인제군" style={inp} />
+        <AddressInput
+          value={d.destination}
+          onChange={v => set('destination', v)}
+          placeholder="예: 강원도 인제 채움펜션"
+        />
       </div>
 
       {/* 거리 + 왕복 */}
