@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useCostItems } from '../hooks/useCostItems'
 import { useVehicles } from '../hooks/useVehicles'
 import { useBoard } from '../hooks/useBoard'
@@ -25,7 +26,21 @@ function StatCard({ icon, title, main, sub, color, bg }) {
   )
 }
 
+async function fetchSummary(payload) {
+  const res = await fetch('/.netlify/functions/trip-summary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || '오류')
+  return data.summary
+}
+
 export default function SummaryPage({ tripId, tripMembers }) {
+  const [aiText, setAiText] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
   const { items: costItems } = useCostItems(tripId)
   const { vehicles } = useVehicles(tripId)
   const { posts, todos } = useBoard(tripId)
@@ -172,6 +187,61 @@ export default function SummaryPage({ tripId, tripMembers }) {
           )}
         </>
       )}
+
+      {/* AI 요약 */}
+      <div style={{ marginTop: 8 }}>
+        <button
+          onClick={async () => {
+            setAiLoading(true)
+            setAiError('')
+            setAiText('')
+            try {
+              const text = await fetchSummary({
+                title: meta?.title || '우리 여행',
+                date: confirmedDate || '미정',
+                members: memberIds.map(id => memberMap[id]?.name).filter(Boolean).join(', '),
+                totalSpent,
+                topPayerName: topPayer?.name,
+                expenses: costItems.slice(0, 5).map(i => i.title).join(', '),
+                routes: vehicles.map(v => `${v.departure}→${v.destination}`).join(', '),
+                totalKm,
+                postCount: posts.length,
+                totalLikes,
+                topPostContent: topPost?.content?.slice(0, 80),
+                todoRate,
+              })
+              setAiText(text)
+            } catch (e) {
+              setAiError(e.message)
+            } finally {
+              setAiLoading(false)
+            }
+          }}
+          disabled={aiLoading}
+          style={{
+            width: '100%', padding: '11px 0', borderRadius: 10, border: 'none',
+            background: aiLoading ? '#e0e0e0' : 'linear-gradient(135deg,#185FA5,#0d9e75)',
+            color: aiLoading ? '#aaa' : '#fff',
+            fontSize: 13, fontWeight: 600, cursor: aiLoading ? 'default' : 'pointer',
+          }}
+        >
+          {aiLoading ? '✨ AI가 후기 작성 중...' : '✨ AI 여행 후기 생성'}
+        </button>
+
+        {aiError && (
+          <div style={{ fontSize: 12, color: '#A32D2D', marginTop: 8 }}>⚠️ {aiError}</div>
+        )}
+
+        {aiText && (
+          <div style={{
+            marginTop: 10, background: '#F7F9FF', borderRadius: 12,
+            padding: '14px 14px', border: '0.5px solid #c5d5ef',
+            fontSize: 13, color: '#222', lineHeight: 1.8, whiteSpace: 'pre-wrap',
+          }}>
+            {aiText}
+          </div>
+        )}
+      </div>
 
     </div>
   )

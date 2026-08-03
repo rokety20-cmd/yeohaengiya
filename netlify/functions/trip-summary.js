@@ -1,4 +1,4 @@
-const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages'
+const OPENAI_API = 'https://api.openai.com/v1/chat/completions'
 
 exports.handler = async (event) => {
   const headers = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' }
@@ -7,7 +7,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, headers, body: 'Method Not Allowed' }
   }
 
-  const key = process.env.ANTHROPIC_API_KEY
+  const key = process.env.OPENAI_API_KEY
   if (!key) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'API 키 미설정' }) }
   }
@@ -43,22 +43,21 @@ ${d.todoRate || 0}%
 위 내용을 재미있게 풀어주세요!`
 
   try {
-    const res = await fetch(ANTHROPIC_API, {
+    const res = await fetch(OPENAI_API, {
       method: 'POST',
       headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }],
       }),
       signal: AbortSignal.timeout(30000),
     })
     const data = await res.json()
-    const text = data.content?.[0]?.text
+    const text = data.choices?.[0]?.message?.content
     if (!text) throw new Error(data.error?.message || '응답 없음')
     return { statusCode: 200, headers, body: JSON.stringify({ summary: text }) }
   } catch (e) {
