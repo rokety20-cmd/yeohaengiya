@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useCostItems } from '../hooks/useCostItems'
 import { useVehicles } from '../hooks/useVehicles'
 import { useBoard } from '../hooks/useBoard'
@@ -33,9 +32,6 @@ export default function SummaryPage({ tripId, tripMembers }) {
   const { friends } = useFriends()
   const { meta } = useTripMeta(tripId)
   const { confirmedDate } = useConfirmedDate(tripId)
-  const [aiText, setAiText] = useState('')
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError] = useState(null)
 
   const memberMap = Object.fromEntries(friends.map(f => [f.id, f]))
   const memberIds = tripMembers || []
@@ -89,40 +85,6 @@ export default function SummaryPage({ tripId, tripMembers }) {
     { emoji: '❤️', title: '인싸', member: memberMap[topLikedId], desc: topLikedId ? `좋아요 ${likesReceived[topLikedId]}개` : null },
     { emoji: '✅', title: '준비왕', member: memberMap[topDoerId], desc: topDoerId ? `${todoDoneCounts[topDoerId]}개 완료` : null },
   ].filter(m => m.member)
-
-  // ── AI 요약 ──────────────────────────────────────────────────
-  async function requestAiSummary() {
-    setAiLoading(true)
-    setAiError(null)
-    setAiText('')
-    try {
-      const res = await fetch('/.netlify/functions/trip-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: meta?.title || '여행',
-          date: confirmedDate || '미정',
-          members: memberIds.map(id => memberMap[id]?.name).filter(Boolean).join(', '),
-          totalSpent,
-          topPayerName: topPayer?.name || null,
-          expenses: costItems.slice(0, 6).map(i => `${i.label} ${fmtAmt(i.totalAmount)}`).join(', '),
-          routes: vehicles.map(v => [v.departure, ...(v.waypoints || []), v.destination].filter(Boolean).join(' → ')).join(' / '),
-          totalKm,
-          postCount: posts.length,
-          totalLikes,
-          topPostContent: topPost?.content?.slice(0, 80) || null,
-          todoRate,
-        }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setAiText(data.summary)
-    } catch (e) {
-      setAiError(e.message)
-    } finally {
-      setAiLoading(false)
-    }
-  }
 
   const hasData = totalSpent > 0 || vehicles.length > 0 || posts.length > 0
 
@@ -211,44 +173,6 @@ export default function SummaryPage({ tripId, tripMembers }) {
         </>
       )}
 
-      {/* AI 요약 */}
-      <div style={{ borderTop: '0.5px solid #f0f0f0', paddingTop: 16 }}>
-        <div style={{ fontSize: 12, color: '#777', marginBottom: 10, lineHeight: 1.6 }}>
-          ✨ AI가 우리 여행 이야기를 재미있게 풀어줍니다
-        </div>
-        <button
-          onClick={requestAiSummary}
-          disabled={aiLoading}
-          style={{
-            width: '100%', padding: '13px 0', borderRadius: 12, border: 'none',
-            background: aiLoading ? '#d0e4f7' : '#185FA5',
-            color: '#fff', fontSize: 14, fontWeight: 600,
-            cursor: aiLoading ? 'default' : 'pointer',
-            letterSpacing: 0.3,
-          }}
-        >
-          {aiLoading ? '✍️ AI가 이야기 쓰는 중...' : '✨ AI 여행 이야기 써주기'}
-        </button>
-
-        {aiError && (
-          <div style={{ marginTop: 10, fontSize: 12, color: '#A32D2D', textAlign: 'center', lineHeight: 1.6 }}>
-            {aiError === 'API 키 미설정'
-              ? 'Netlify 환경변수에 ANTHROPIC_API_KEY를 설정해주세요'
-              : `오류: ${aiError}`}
-          </div>
-        )}
-
-        {aiText && (
-          <div style={{
-            marginTop: 14, background: '#f9f9f9', border: '0.5px solid #e0e0e0',
-            borderRadius: 14, padding: '16px 16px',
-            fontSize: 14, color: '#333', lineHeight: 1.9,
-            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-          }}>
-            {aiText}
-          </div>
-        )}
-      </div>
     </div>
   )
 }
