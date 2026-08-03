@@ -11,10 +11,23 @@ const DEFAULTS = {
   departureTime: '',
 }
 
+// 직선거리 (하버사인 공식) — 실제 도로거리는 약 1.2~1.4배
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return Math.round(R * 2 * Math.asin(Math.sqrt(a)))
+}
+
 // ─── 폼 ───────────────────────────────────────────────────────────────────────
 function VehicleForm({ initial, members, onSave, onCancel }) {
   const [d, setD] = useState({ ...DEFAULTS, ...initial, passengerIds: initial?.passengerIds ?? [] })
   const [wpInput, setWpInput] = useState('')
+  const [depCoords, setDepCoords] = useState(null)   // { lat, lng }
+  const [destCoords, setDestCoords] = useState(null)
+  const [autoCalc, setAutoCalc] = useState(false)
 
   function set(k, v) { setD(p => ({ ...p, [k]: v })) }
   function togglePax(id) {
@@ -95,7 +108,14 @@ function VehicleForm({ initial, members, onSave, onCancel }) {
         <div style={{ marginBottom: 6 }}>
           <AddressInput
             value={d.departure}
-            onChange={v => set('departure', v)}
+            onChange={v => { set('departure', v); setDepCoords(null); setAutoCalc(false) }}
+            onSelect={(_, lat, lng) => {
+              setDepCoords({ lat, lng })
+              if (destCoords) {
+                set('distanceKm', haversineKm(lat, lng, destCoords.lat, destCoords.lng))
+                setAutoCalc(true)
+              }
+            }}
             placeholder="예: 서울 강남구, 호수로 336"
           />
         </div>
@@ -128,7 +148,14 @@ function VehicleForm({ initial, members, onSave, onCancel }) {
         <div style={lbl}>목적지</div>
         <AddressInput
           value={d.destination}
-          onChange={v => set('destination', v)}
+          onChange={v => { set('destination', v); setDestCoords(null); setAutoCalc(false) }}
+          onSelect={(_, lat, lng) => {
+            setDestCoords({ lat, lng })
+            if (depCoords) {
+              set('distanceKm', haversineKm(depCoords.lat, depCoords.lng, lat, lng))
+              setAutoCalc(true)
+            }
+          }}
           placeholder="예: 강원도 인제 채움펜션"
         />
       </div>
@@ -136,8 +163,21 @@ function VehicleForm({ initial, members, onSave, onCancel }) {
       {/* 거리 + 왕복 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
-          <div style={lbl}>편도 거리 (km)</div>
-          <input type="number" value={d.distanceKm} onChange={e => set('distanceKm', e.target.value)} placeholder="150" style={inp} />
+          <div style={{ ...lbl, display: 'flex', alignItems: 'center', gap: 6 }}>
+            편도 거리 (km)
+            {autoCalc && (
+              <span style={{ fontSize: 10, background: '#E1F5EE', color: '#085041', padding: '1px 7px', borderRadius: 8 }}>
+                ✓ 자동계산
+              </span>
+            )}
+          </div>
+          <input
+            type="number"
+            value={d.distanceKm}
+            onChange={e => { set('distanceKm', e.target.value); setAutoCalc(false) }}
+            placeholder="출발지·목적지 선택 시 자동계산"
+            style={inp}
+          />
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#555', paddingBottom: 10, cursor: 'pointer', flexShrink: 0 }}>
           <input type="checkbox" checked={d.isRoundTrip} onChange={e => set('isRoundTrip', e.target.checked)} />
@@ -148,6 +188,7 @@ function VehicleForm({ initial, members, onSave, onCancel }) {
         <div style={{ fontSize: 12, color: '#185FA5', marginBottom: 10, paddingLeft: 2 }}>
           📍 총 거리: <strong>{totalDist}km</strong>
           {d.isRoundTrip && <span style={{ color: '#aaa', marginLeft: 6 }}>({dist}km × 2)</span>}
+          {autoCalc && <span style={{ fontSize: 10, color: '#aaa', marginLeft: 8 }}>직선거리 기준 (실제 도로는 약 1.2배)</span>}
         </div>
       )}
 
