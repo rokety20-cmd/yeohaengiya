@@ -21,40 +21,49 @@ const TYPE_TAG = {
   county:         { label: '군/구',  color: '#555'    },
 }
 
-async function searchPlace(q) {
+// Kakao REST API (서버 프록시) — 키 있을 때 우선 사용
+async function searchKakao(q) {
+  const res = await fetch(`/.netlify/functions/place-search?q=${encodeURIComponent(q)}`)
+  if (!res.ok) return []
+  const data = await res.json()
+  return (data.documents || []).map(d => ({
+    name: d.place_name,
+    sub: d.road_address_name || d.address_name || '',
+    tag: d.category_group_name ? { label: d.category_group_name, color: '#185FA5' } : null,
+    lat: Number(d.y),
+    lng: Number(d.x),
+  }))
+}
+
+// Nominatim fallback — 키 없을 때
+async function searchNominatim(q) {
   const params = new URLSearchParams({
-    q,
-    format: 'json',
-    limit: 8,
-    'accept-language': 'ko',
-    countrycodes: 'kr',
-    addressdetails: 1,
+    q, format: 'json', limit: 8,
+    'accept-language': 'ko', countrycodes: 'kr', addressdetails: 1,
   })
   const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`)
   if (!res.ok) return []
-  return res.json()
+  return (await res.json()).map(formatNominatim)
 }
 
-function formatItem(item) {
+function formatNominatim(item) {
   const a = item.address || {}
   const firstName = item.display_name.split(', ')[0]
-
-  // 장소명: 구조화된 주소에서 가장 구체적인 이름 추출
-  const name =
-    a.station || a.amenity || a.tourism || a.leisure ||
-    a.shop || a.building || a.historic || a.natural ||
-    a.aeroway || firstName
-
-  // 위치 맥락: 동/구/시/도 순으로 2개
+  const name = a.station || a.amenity || a.tourism || a.leisure ||
+    a.shop || a.building || a.historic || a.natural || firstName
   const location = [
     a.suburb || a.quarter || a.city_district,
     a.city || a.town || a.village || a.county,
     a.state,
   ].filter(Boolean).filter(p => p !== name).slice(0, 2).join(' ')
-
   const tag = TYPE_TAG[item.type] || TYPE_TAG[item.class] || null
-
   return { name, sub: location, tag, lat: Number(item.lat), lng: Number(item.lon) }
+}
+
+async function searchPlace(q) {
+  const kakao = await searchKakao(q)
+  if (kakao.length > 0) return kakao
+  return searchNominatim(q)
 }
 
 function dedup(items) {
