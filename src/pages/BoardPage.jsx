@@ -11,11 +11,24 @@ function timeAgo(ts) {
 }
 
 // ─── 게시물 카드 ──────────────────────────────────────────────────────────────
-function PostCard({ post, me, memberMap, onPin, onLike, onDelete }) {
+function PostCard({ post, me, memberMap, onPin, onLike, onDelete, onReply }) {
   const author = memberMap[post.memberId]
   const likeCount = Object.keys(post.likes || {}).length
   const iLiked = !!(post.likes || {})[me?.id]
   const isMe = post.memberId === me?.id
+  const [showReply, setShowReply] = useState(false)
+  const [replyText, setReplyText] = useState('')
+
+  const replies = post.replies
+    ? Object.entries(post.replies).map(([id, d]) => ({ id, ...d })).sort((a, b) => a.createdAt - b.createdAt)
+    : []
+
+  function submitReply() {
+    if (!replyText.trim()) return
+    onReply(post.id, replyText)
+    setReplyText('')
+    setShowReply(false)
+  }
 
   return (
     <div style={{
@@ -39,23 +52,26 @@ function PostCard({ post, me, memberMap, onPin, onLike, onDelete }) {
         {post.content}
       </div>
 
-      {/* 액션 */}
+      {/* 액션 버튼 */}
       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
         <button onClick={() => onLike(post.id, iLiked)} style={{
           padding: '3px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
           border: `0.5px solid ${iLiked ? '#f09595' : '#e0e0e0'}`,
           background: iLiked ? '#FCEBEB' : '#f9f9f9',
           color: iLiked ? '#A32D2D' : '#888',
-        }}>
-          ❤️ {likeCount > 0 ? likeCount : ''}
-        </button>
+        }}>❤️ {likeCount > 0 ? likeCount : ''}</button>
+
+        <button onClick={() => setShowReply(v => !v)} style={{
+          padding: '3px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+          border: '0.5px solid #e0e0e0', background: showReply ? '#E6F1FB' : '#f9f9f9',
+          color: showReply ? '#0C447C' : '#888',
+        }}>💬 답글 {replies.length > 0 ? replies.length : ''}</button>
+
         {me?.role === '총무' && (
           <button onClick={() => onPin(post.id, post.pinned)} style={{
             padding: '3px 10px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
             border: '0.5px solid #e0e0e0', background: '#f9f9f9', color: '#888',
-          }}>
-            {post.pinned ? '📌 고정 해제' : '📌 고정'}
-          </button>
+          }}>{post.pinned ? '📌 해제' : '📌 고정'}</button>
         )}
         {isMe && (
           <button onClick={() => onDelete(post.id)} style={{
@@ -64,6 +80,56 @@ function PostCard({ post, me, memberMap, onPin, onLike, onDelete }) {
           }}>✕</button>
         )}
       </div>
+
+      {/* 답글 목록 + 입력 */}
+      {(replies.length > 0 || showReply) && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid #f0f0f0' }}>
+          {replies.map((r) => {
+            const rAuthor = memberMap[r.memberId]
+            return (
+              <div key={r.id} style={{ display: 'flex', gap: 8, marginBottom: 7, paddingLeft: 8, borderLeft: '2px solid #e0e0e0' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    {rAuthor && (
+                      <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 20, background: rAuthor.bg || '#eee', color: rAuthor.tc || '#333', fontWeight: 500 }}>
+                        {rAuthor.name}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 10, color: '#ccc' }}>{timeAgo(r.createdAt)}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#444', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {r.content}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {showReply && (
+            <div style={{ display: 'flex', gap: 6, marginTop: replies.length > 0 ? 8 : 0 }}>
+              <input
+                autoFocus
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitReply()}
+                placeholder={me ? `${me.name}(으)로 답글...` : '이름을 선택하세요'}
+                disabled={!me}
+                style={{
+                  flex: 1, padding: '7px 10px', borderRadius: 8,
+                  border: '0.5px solid #d0e4f7', fontSize: 12, boxSizing: 'border-box',
+                  background: '#f5f9ff',
+                }}
+              />
+              <button onClick={submitReply} disabled={!replyText.trim() || !me} style={{
+                padding: '7px 14px', borderRadius: 8, border: 'none',
+                background: replyText.trim() && me ? '#185FA5' : '#e0e0e0',
+                color: replyText.trim() && me ? '#fff' : '#aaa',
+                fontSize: 12, cursor: 'pointer', flexShrink: 0,
+              }}>전송</button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -140,7 +206,7 @@ function TodoSection({ todos, me, memberMap, onAdd, onToggle, onDelete }) {
 
 // ─── 페이지 ───────────────────────────────────────────────────────────────────
 export default function BoardPage({ me, tripId, tripMembers }) {
-  const { posts, todos, loading, addPost, togglePin, toggleLike, deletePost, addTodo, toggleTodo, deleteTodo } = useBoard(tripId)
+  const { posts, todos, loading, addPost, togglePin, toggleLike, deletePost, addReply, addTodo, toggleTodo, deleteTodo } = useBoard(tripId)
   const { friends } = useFriends()
   const [draft, setDraft] = useState('')
   const bottomRef = useRef(null)
@@ -189,6 +255,7 @@ export default function BoardPage({ me, tripId, tripMembers }) {
               onPin={togglePin}
               onLike={(id, iLiked) => toggleLike(id, me?.id, iLiked)}
               onDelete={deletePost}
+              onReply={(postId, text) => addReply(postId, me?.id, text)}
             />
           ))}
           <div ref={bottomRef} />

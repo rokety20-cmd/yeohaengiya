@@ -59,6 +59,12 @@ export function useBoard(tripId) {
     remove(postRef(tripId, id))
   }, [tripId])
 
+  const addReply = useCallback((postId, memberId, content) => {
+    if (!tripId || !content.trim()) return
+    const replyRef = ref(db, `trips/${tripId}/board/${postId}/replies`)
+    push(replyRef, { memberId, content: content.trim(), createdAt: Date.now() })
+  }, [tripId])
+
   const addTodo = useCallback((text) => {
     if (!tripId || !text.trim()) return
     push(todoRef(tripId), { text: text.trim(), done: false, doneBy: null, createdAt: Date.now() })
@@ -72,5 +78,5 @@ export function useBoard(tripId) {
     remove(todoItem(tripId, id))
   }, [tripId])
 
-  return { posts, todos, loading, addPost, togglePin, toggleLike, deletePost, addTodo, toggleTodo, deleteTodo }
+  return { posts, todos, loading, addPost, togglePin, toggleLike, deletePost, addReply, addTodo, toggleTodo, deleteTodo }
 }
