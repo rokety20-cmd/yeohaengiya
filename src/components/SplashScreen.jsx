@@ -43,11 +43,16 @@ export default function SplashScreen({ onDone }) {
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
       <div style={{
-        position: 'absolute', bottom: 24, left: 0, right: 0,
-        textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.5)',
-        letterSpacing: 1, pointerEvents: 'none',
+        position: 'absolute', bottom: 28, left: 0, right: 0,
+        display: 'flex', justifyContent: 'center', pointerEvents: 'none',
       }}>
-        터치시 스킵
+        <span style={{
+          fontSize: 12, color: '#fff', letterSpacing: 1,
+          background: 'rgba(0,0,0,0.45)', padding: '5px 16px',
+          borderRadius: 20, backdropFilter: 'blur(4px)',
+        }}>
+          터치하여 스킵
+        </span>
       </div>
     </div>
   )
