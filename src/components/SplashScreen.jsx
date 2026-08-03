@@ -42,6 +42,13 @@ export default function SplashScreen({ onDone }) {
         alt=""
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
+      <div style={{
+        position: 'absolute', bottom: 24, left: 0, right: 0,
+        textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.5)',
+        letterSpacing: 1, pointerEvents: 'none',
+      }}>
+        터치시 스킵
+      </div>
     </div>
   )
 }
