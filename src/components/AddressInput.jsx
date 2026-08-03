@@ -1,12 +1,34 @@
 import { useState, useRef, useEffect } from 'react'
 
+const TYPE_TAG = {
+  station:        { label: '역',     color: '#0C447C' },
+  subway_entrance:{ label: '지하철', color: '#0C447C' },
+  bus_stop:       { label: '버스',   color: '#633806' },
+  restaurant:     { label: '음식점', color: '#A32D2D' },
+  cafe:           { label: '카페',   color: '#633806' },
+  hotel:          { label: '숙박',   color: '#4C0C7C' },
+  motel:          { label: '숙박',   color: '#4C0C7C' },
+  guest_house:    { label: '숙박',   color: '#4C0C7C' },
+  hostel:         { label: '숙박',   color: '#4C0C7C' },
+  park:           { label: '공원',   color: '#085041' },
+  beach:          { label: '해변',   color: '#085041' },
+  museum:         { label: '박물관', color: '#633806' },
+  hospital:       { label: '병원',   color: '#A32D2D' },
+  supermarket:    { label: '마트',   color: '#085041' },
+  city:           { label: '도시',   color: '#555'    },
+  town:           { label: '도시',   color: '#555'    },
+  administrative: { label: '행정구역', color: '#555'  },
+  county:         { label: '군/구',  color: '#555'    },
+}
+
 async function searchPlace(q) {
   const params = new URLSearchParams({
     q,
     format: 'json',
-    limit: 6,
+    limit: 8,
     'accept-language': 'ko',
     countrycodes: 'kr',
+    addressdetails: 1,
   })
   const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`)
   if (!res.ok) return []
@@ -14,10 +36,35 @@ async function searchPlace(q) {
 }
 
 function formatItem(item) {
-  const parts = item.display_name.split(', ')
-  const name = parts[0]
-  const sub = parts.slice(1).filter(p => p !== '대한민국').slice(0, 3).join(', ')
-  return { name, sub, lat: Number(item.lat), lng: Number(item.lon) }
+  const a = item.address || {}
+  const firstName = item.display_name.split(', ')[0]
+
+  // 장소명: 구조화된 주소에서 가장 구체적인 이름 추출
+  const name =
+    a.station || a.amenity || a.tourism || a.leisure ||
+    a.shop || a.building || a.historic || a.natural ||
+    a.aeroway || firstName
+
+  // 위치 맥락: 동/구/시/도 순으로 2개
+  const location = [
+    a.suburb || a.quarter || a.city_district,
+    a.city || a.town || a.village || a.county,
+    a.state,
+  ].filter(Boolean).filter(p => p !== name).slice(0, 2).join(' ')
+
+  const tag = TYPE_TAG[item.type] || TYPE_TAG[item.class] || null
+
+  return { name, sub: location, tag, lat: Number(item.lat), lng: Number(item.lon) }
+}
+
+function dedup(items) {
+  const seen = new Set()
+  return items.filter(item => {
+    const key = item.name + '|' + Math.round(item.lat * 50) + '|' + Math.round(item.lng * 50)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 export default function AddressInput({ value, onChange, onSelect, placeholder, style = {} }) {
@@ -48,7 +95,7 @@ export default function AddressInput({ value, onChange, onSelect, placeholder, s
       setLoading(true)
       try {
         const data = await searchPlace(q)
-        const formatted = data.map(formatItem)
+        const formatted = dedup(data.map(formatItem))
         setResults(formatted)
         setOpen(formatted.length > 0)
       } catch {
@@ -110,9 +157,19 @@ export default function AddressInput({ value, onChange, onSelect, placeholder, s
               onMouseEnter={e => e.currentTarget.style.background = '#f9f9f9'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#222' }}>{r.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {r.tag && (
+                  <span style={{
+                    fontSize: 10, padding: '1px 6px', borderRadius: 8, flexShrink: 0,
+                    background: r.tag.color + '18', color: r.tag.color, fontWeight: 600,
+                  }}>{r.tag.label}</span>
+                )}
+                <span style={{ fontSize: 13, fontWeight: 500, color: '#222' }}>{r.name}</span>
+              </div>
               {r.sub && (
-                <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{r.sub}</div>
+                <div style={{ fontSize: 11, color: '#999', marginTop: 2, paddingLeft: r.tag ? 2 : 0 }}>
+                  {r.sub}
+                </div>
               )}
             </button>
           ))}
