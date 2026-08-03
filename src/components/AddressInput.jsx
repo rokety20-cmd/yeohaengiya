@@ -2,36 +2,56 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 const KEY = import.meta.env.VITE_KAKAO_MAP_KEY
 
-function ensureSDK(cb) {
-  if (window.kakao?.maps?.services) { cb(); return }
+// autoload=false + kakao.maps.load() 방식 — 초기화 실패 시 onError 호출
+function ensureSDK(onReady, onError) {
+  if (window.kakao?.maps?.services) { onReady(); return }
 
-  function waitReady() {
-    const t = setInterval(() => {
-      if (window.kakao?.maps?.services) { clearInterval(t); cb() }
-    }, 150)
+  function tryLoad() {
+    if (!window.kakao?.maps) {
+      onError('no-kakao')
+      return
+    }
+    window.kakao.maps.load(() => {
+      if (window.kakao.maps.services) onReady()
+      else onError('no-services')
+    })
   }
 
-  if (document.getElementById('kakao-map-sdk')) { waitReady(); return }
+  // 스크립트 태그가 이미 있으면 window.kakao 준비될 때까지 대기
+  if (document.getElementById('kakao-map-sdk')) {
+    if (window.kakao?.maps) { tryLoad(); return }
+    const start = Date.now()
+    const t = setInterval(() => {
+      if (window.kakao?.maps) { clearInterval(t); tryLoad(); return }
+      if (Date.now() - start > 7000) { clearInterval(t); onError('timeout') }
+    }, 200)
+    return
+  }
 
   const s = document.createElement('script')
   s.id = 'kakao-map-sdk'
-  s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services`
-  s.onload = waitReady
-  s.onerror = () => console.warn('[AddressInput] Kakao SDK 로드 실패 — 도메인 등록 또는 API키 확인')
+  s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services&autoload=false`
+  s.onload = tryLoad
+  s.onerror = () => onError('load-failed')
   document.head.appendChild(s)
 }
 
-// onSelect(text, lat, lng) — 드롭다운에서 선택 시 좌표도 함께 전달
 export default function AddressInput({ value, onChange, onSelect, placeholder, style = {} }) {
   const [query, setQuery] = useState(value ?? '')
   const [results, setResults] = useState([])
   const [open, setOpen] = useState(false)
   const [sdkReady, setSdkReady] = useState(false)
+  const [sdkError, setSdkError] = useState(null)
   const [loading, setLoading] = useState(false)
   const timer = useRef(null)
   const wrapRef = useRef(null)
 
-  useEffect(() => { ensureSDK(() => setSdkReady(true)) }, [])
+  useEffect(() => {
+    ensureSDK(
+      () => setSdkReady(true),
+      (reason) => setSdkError(reason)
+    )
+  }, [])
 
   useEffect(() => {
     function onDown(e) {
@@ -110,22 +130,39 @@ export default function AddressInput({ value, onChange, onSelect, placeholder, s
     setOpen(false)
   }
 
-  const inputStyle = {
+  const baseStyle = {
     width: '100%', padding: '8px 10px', borderRadius: 8,
     border: '0.5px solid #ddd', fontSize: 13, boxSizing: 'border-box',
     background: '#fff', outline: 'none',
     ...style,
   }
 
-  // API 키가 빌드에 포함되지 않은 경우 → 눈에 보이는 오류 표시
+  // API 키 없음
   if (!KEY) {
     return (
       <input
         value={query}
         onChange={e => { setQuery(e.target.value); onChange(e.target.value) }}
         placeholder="⚠️ VITE_KAKAO_MAP_KEY 미설정 — 직접 입력"
-        style={{ ...inputStyle, borderColor: '#f0c5c5', color: '#A32D2D' }}
+        style={{ ...baseStyle, borderColor: '#f0c5c5', color: '#A32D2D' }}
       />
+    )
+  }
+
+  // SDK 로드 실패 → 수동 입력 허용
+  if (sdkError) {
+    return (
+      <div>
+        <input
+          value={query}
+          onChange={e => { setQuery(e.target.value); onChange(e.target.value) }}
+          placeholder={placeholder ?? '주소 직접 입력 (자동완성 불가)'}
+          style={{ ...baseStyle, borderColor: '#e8c97a' }}
+        />
+        <div style={{ fontSize: 10, color: '#856404', marginTop: 3 }}>
+          ⚠️ 지도 연결 실패 — 카카오 앱 도메인 등록 확인 필요
+        </div>
+      </div>
     )
   }
 
@@ -136,20 +173,15 @@ export default function AddressInput({ value, onChange, onSelect, placeholder, s
           value={query}
           onChange={handleChange}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder={placeholder ?? '주소 또는 장소명 입력'}
-          style={inputStyle}
+          placeholder={sdkReady ? (placeholder ?? '주소 또는 장소명 입력') : '지도 연결 중...'}
+          disabled={!sdkReady}
+          style={{ ...baseStyle, color: sdkReady ? '#222' : '#aaa' }}
         />
         {loading && (
           <span style={{
             position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
             fontSize: 11, color: '#aaa', pointerEvents: 'none',
           }}>검색 중...</span>
-        )}
-        {!sdkReady && !loading && (
-          <span style={{
-            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-            fontSize: 10, color: '#ccc', pointerEvents: 'none',
-          }}>로딩 중</span>
         )}
       </div>
 

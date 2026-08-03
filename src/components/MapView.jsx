@@ -33,24 +33,32 @@ export default function MapView({ departure, waypoints, destination }) {
   const [martResults, setMartResults] = useState([])
   const [searching, setSearching] = useState(false)
 
-  // SDK 로드 (한 번만)
+  // SDK 로드 (AddressInput과 동일한 autoload=false 방식)
   useEffect(() => {
     if (!KEY) return
 
-    function waitReady() {
-      const t = setInterval(() => {
-        if (window.kakao?.maps?.services) { clearInterval(t); setReady(true) }
-      }, 150)
+    function tryLoad() {
+      if (!window.kakao?.maps) return
+      window.kakao.maps.load(() => {
+        if (window.kakao.maps.services) setReady(true)
+      })
     }
 
     if (window.kakao?.maps?.services) { setReady(true); return }
-    if (document.getElementById('kakao-map-sdk')) { waitReady(); return }
+
+    if (document.getElementById('kakao-map-sdk')) {
+      if (window.kakao?.maps) { tryLoad(); return }
+      const t = setInterval(() => {
+        if (window.kakao?.maps) { clearInterval(t); tryLoad() }
+      }, 200)
+      return
+    }
 
     const s = document.createElement('script')
     s.id = 'kakao-map-sdk'
-    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services`
-    s.onload = waitReady
-    s.onerror = () => console.warn('[MapView] Kakao SDK 로드 실패 — 도메인 등록 또는 API키 확인')
+    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services&autoload=false`
+    s.onload = tryLoad
+    s.onerror = () => console.warn('[MapView] Kakao SDK 로드 실패')
     document.head.appendChild(s)
   }, [])
 
