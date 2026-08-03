@@ -23,7 +23,7 @@ const TYPE_TAG = {
 
 // Kakao REST API (서버 프록시) — 키 있을 때 우선 사용
 async function searchKakao(q) {
-  const res = await fetch(`/.netlify/functions/place-search?q=${encodeURIComponent(q)}`)
+  const res = await fetch(`/api/place-search?q=${encodeURIComponent(q)}`)
   if (!res.ok) return []
   const data = await res.json()
   return (data.documents || []).map(d => ({
