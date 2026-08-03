@@ -2,17 +2,23 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 
 const KEY = import.meta.env.VITE_KAKAO_MAP_KEY
 
-// SDK 로드 (MapView와 공유 — script 중복 방지)
+// SDK 로드 — autoload 방식으로 단순화, services 포함
 function ensureSDK(cb) {
-  if (window.kakao?.maps) { cb(); return }
-  if (document.getElementById('kakao-map-sdk')) {
-    const t = setInterval(() => { if (window.kakao?.maps) { clearInterval(t); cb() } }, 100)
-    return
+  if (window.kakao?.maps?.services) { cb(); return }
+
+  function waitReady() {
+    const t = setInterval(() => {
+      if (window.kakao?.maps?.services) { clearInterval(t); cb() }
+    }, 150)
   }
+
+  if (document.getElementById('kakao-map-sdk')) { waitReady(); return }
+
   const s = document.createElement('script')
   s.id = 'kakao-map-sdk'
-  s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services&autoload=false`
-  s.onload = () => window.kakao.maps.load(cb)
+  s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services`
+  s.onload = waitReady
+  s.onerror = () => console.warn('[AddressInput] Kakao SDK 로드 실패 — 도메인 등록 또는 API키 확인')
   document.head.appendChild(s)
 }
 

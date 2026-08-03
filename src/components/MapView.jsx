@@ -36,14 +36,21 @@ export default function MapView({ departure, waypoints, destination }) {
   // SDK 로드 (한 번만)
   useEffect(() => {
     if (!KEY) return
-    if (window.kakao?.maps) { setReady(true); return }
-    if (document.getElementById('kakao-map-sdk')) return  // already loading
+
+    function waitReady() {
+      const t = setInterval(() => {
+        if (window.kakao?.maps?.services) { clearInterval(t); setReady(true) }
+      }, 150)
+    }
+
+    if (window.kakao?.maps?.services) { setReady(true); return }
+    if (document.getElementById('kakao-map-sdk')) { waitReady(); return }
 
     const s = document.createElement('script')
     s.id = 'kakao-map-sdk'
-    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services&autoload=false`
-    s.onload = () => window.kakao.maps.load(() => setReady(true))
-    s.onerror = () => console.warn('Kakao Maps SDK 로드 실패')
+    s.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KEY}&libraries=services`
+    s.onload = waitReady
+    s.onerror = () => console.warn('[MapView] Kakao SDK 로드 실패 — 도메인 등록 또는 API키 확인')
     document.head.appendChild(s)
   }, [])
 
