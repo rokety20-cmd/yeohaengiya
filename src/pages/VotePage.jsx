@@ -18,7 +18,7 @@ const CHOICE_COLOR = { prefer: '#1D9E75', ok: '#185FA5', no: '#A32D2D' }
 const CHOICE_BG = { prefer: '#E1F5EE', ok: '#E6F1FB', no: '#FCEBEB' }
 const CHOICE_LABEL = { prefer: '👍 선호', ok: '✅ 가능', no: '❌ 불가' }
 
-function DateCard({ d, members, preferences, votes, myId, isTreasurer, confirmedDate, onCast, onConfirm }) {
+function DateCard({ d, members, preferences, votes, myId, isHost, confirmedDate, onCast, onConfirm }) {
   const datePrefs = preferences[d.id] || {}
   const prefer = members.filter((m) => datePrefs[m.id] === 'prefer')
   const ok = members.filter((m) => datePrefs[m.id] === 'ok')
@@ -82,7 +82,7 @@ function DateCard({ d, members, preferences, votes, myId, isTreasurer, confirmed
               cursor: 'pointer',
             }}>{CHOICE_LABEL[choice]}</button>
           ))}
-          {isTreasurer && !confirmedDate && (
+          {isHost && !confirmedDate && (
             <button onClick={() => onConfirm(d.id)} style={{
               padding: '7px 10px', borderRadius: 8, fontSize: 12,
               border: '0.5px solid #1D9E75', background: '#fff', color: '#0F6E56', cursor: 'pointer',
@@ -94,7 +94,7 @@ function DateCard({ d, members, preferences, votes, myId, isTreasurer, confirmed
   )
 }
 
-function PensionCard({ p, myId, isTreasurer, likes, confirmedPension, onToggleLike, onConfirm, onRemove, memberCount }) {
+function PensionCard({ p, myId, isHost, likes, confirmedPension, onToggleLike, onConfirm, onRemove, memberCount }) {
   const likeMap = likes[p.key] || {}
   const likeCount = Object.keys(likeMap).length
   const iLiked = !!likeMap[myId]
@@ -158,13 +158,13 @@ function PensionCard({ p, myId, isTreasurer, likes, confirmedPension, onToggleLi
             }}>예약 링크 →</a>
           )}
 
-          {isTreasurer && !isConfirmed && (
+          {isHost && !isConfirmed && (
             <button onClick={() => onConfirm(p.key)} style={{
               padding: '5px 10px', borderRadius: 8, fontSize: 12,
               border: '0.5px solid #1D9E75', background: '#E1F5EE', color: '#085041', cursor: 'pointer',
             }}>숙소 확정</button>
           )}
-          {isTreasurer && isConfirmed && (
+          {isHost && isConfirmed && (
             <button onClick={() => onConfirm(null)} style={{
               padding: '5px 10px', borderRadius: 8, fontSize: 12,
               border: '0.5px solid #ddd', background: '#f5f5f5', color: '#888', cursor: 'pointer',
@@ -355,7 +355,8 @@ export default function VotePage({ me, tripId, tripMembers }) {
   const memberMap = Object.fromEntries(friends.map((f) => [f.id, f]))
   const members = tripMembers.map((id) => memberMap[id]).filter(Boolean)
   const memberCount = members.length
-  const isTreasurer = me.role === '총무'
+  // 방장: meta.hostId 우선, 없으면 기존 총무 역할로 fallback
+  const isHost = meta?.hostId ? meta.hostId === me.id : me.role === '총무'
 
   // Best date by score
   const bestDateId = dateOptions.reduce((best, d) => {
@@ -397,7 +398,7 @@ export default function VotePage({ me, tripId, tripMembers }) {
             preferences={preferences}
             votes={votes}
             myId={me.id}
-            isTreasurer={isTreasurer}
+            isHost={isHost}
             confirmedDate={confirmedDate}
             onCast={castPreference}
             onConfirm={confirmDate}
@@ -446,7 +447,7 @@ export default function VotePage({ me, tripId, tripMembers }) {
           key={p.key}
           p={p}
           myId={me.id}
-          isTreasurer={isTreasurer}
+          isHost={isHost}
           likes={pensionLikes}
           confirmedPension={confirmedPension}
           onToggleLike={toggleLike}

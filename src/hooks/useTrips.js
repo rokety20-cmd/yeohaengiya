@@ -38,7 +38,7 @@ export function useTrips() {
     return () => { unsub(); clearTimeout(timeout) }
   }, [])
 
-  const createTrip = useCallback(async (title, destination = '', deletePassword = '') => {
+  const createTrip = useCallback(async (title, destination = '', deletePassword = '', hostId = '') => {
     const newRef = push(tripsRef())
     await set(newRef, {
       meta: {
@@ -48,6 +48,7 @@ export function useTrips() {
         confirmedDate: null,
         createdAt: Date.now(),
         deletePassword: deletePassword ? hashStr(deletePassword) : null,
+        hostId: hostId || null,
       },
     })
     return newRef.key

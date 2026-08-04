@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useTrips } from '../hooks/useTrips'
+import { useFriends } from '../hooks/useFriends'
 
 const STATUS_LABEL = { planning: '준비 중', active: '진행 중', done: '완료' }
 const STATUS_COLOR = { planning: '#185FA5', active: '#1D9E75', done: '#aaa' }
 
 export default function TripSelectPage({ onSelect, onManageFriends }) {
   const { trips, loading, createTrip, deleteTrip } = useTrips()
+  const { friends } = useFriends()
+  const friendMap = Object.fromEntries(friends.map(f => [f.id, f]))
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [dest, setDest] = useState('')
   const [deletePassword, setDeletePassword] = useState('')
+  const [hostId, setHostId] = useState('')
   const [creating, setCreating] = useState(false)
 
   const [deletingId, setDeletingId] = useState(null)
@@ -20,13 +24,15 @@ export default function TripSelectPage({ onSelect, onManageFriends }) {
   async function handleCreate() {
     if (!title.trim()) return
     if (!deletePassword.trim()) return alert('삭제 비밀번호를 설정해주세요')
+    if (!hostId) return alert('방장을 선택해주세요')
     setCreating(true)
-    const id = await createTrip(title.trim(), dest.trim(), deletePassword.trim())
+    const id = await createTrip(title.trim(), dest.trim(), deletePassword.trim(), hostId)
     setCreating(false)
     setShowForm(false)
     setTitle('')
     setDest('')
     setDeletePassword('')
+    setHostId('')
     onSelect(id)
   }
 
@@ -83,7 +89,7 @@ export default function TripSelectPage({ onSelect, onManageFriends }) {
                     {trip.meta?.destination && (
                       <div style={s.tripSub}>📍 {trip.meta.destination}</div>
                     )}
-                    <div style={s.tripSub}>{memberCount > 0 ? `👥 ${memberCount}명` : '참가자 없음'}</div>
+                    <div style={s.tripSub}>{memberCount > 0 ? `👥 ${memberCount}명` : '참가자 없음'}{trip.meta?.hostId && friendMap[trip.meta.hostId] ? ` · 👑 ${friendMap[trip.meta.hostId].name}` : ''}</div>
                   </div>
                   <div style={{ ...s.badge, color: STATUS_COLOR[status] }}>
                     {STATUS_LABEL[status] ?? status}
@@ -148,6 +154,16 @@ export default function TripSelectPage({ onSelect, onManageFriends }) {
             onChange={(e) => setDest(e.target.value)}
             style={s.input}
           />
+          <select
+            value={hostId}
+            onChange={(e) => setHostId(e.target.value)}
+            style={{ ...s.input, color: hostId ? '#222' : '#aaa' }}
+          >
+            <option value="">👑 방장 선택 (여행 확정 권한)</option>
+            {friends.filter(f => f.isActive !== false).map(f => (
+              <option key={f.id} value={f.id}>{f.emoji} {f.name}</option>
+            ))}
+          </select>
           <input
             placeholder="🔐 삭제 비밀번호 (나중에 여행 삭제 시 필요)"
             type="password"
